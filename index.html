@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<!-- © 2026 math-terakoya ／ CC BY-NC-SA 4.0（表示・非営利・継承）https://creativecommons.org/licenses/by-nc-sa/4.0/deed.ja -->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:;">
+<title>累乗根クエスト</title>
+<style>
+  /* ===================== レトロRPG風CSS（三角比クエストと共通） ===================== */
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  html, body {
+    height: 100%;
+    background: #000;
+    font-family: 'Courier New', 'ＭＳ ゴシック', 'Osaka-Mono', monospace;
+    color: #fff;
+    overflow: hidden;
+  }
+  body { display: flex; align-items: center; justify-content: center; font-feature-settings: "palt"; }
+  #game {
+    width: 100%;
+    max-width: 480px;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 900px;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    border: 2px solid #333;
+    overflow: hidden;
+  }
+
+.rpg-window {
+background: #000;
+border: 3px solid #fff;
+box-shadow: 0 0 0 3px #000, 0 0 0 5px #fff;
+padding: 8px;
+margin: 6px 8px;
+position: relative;
+}
+
+#status {
+display: grid;
+grid-template-columns: 1fr 1fr;
+column-gap: 14px;
+padding: 4px 10px;
+font-size: 12px;
+line-height: 1.7;
+flex-shrink: 0;
+}
+#status .row { display: flex; justify-content: space-between; }
+#status .label { color: #ffff00; letter-spacing: 1px; }
+#status .value { color: #fff; letter-spacing: 1px; }
+#status .wide { grid-column: 1 / -1; }
+
+.hearts { letter-spacing: 2px; color: #ff4444; }
+.hearts .empty { color: #444; }
+
+#battle {
+display: grid;
+grid-template-columns: 64px 1fr;
+align-items: center;
+gap: 6px;
+padding: 6px 8px;
+flex-shrink: 0;
+}
+#enemy { text-align: center; }
+#monster {
+font-size: 38px;
+line-height: 1.1;
+display: inline-block;
+transition: transform 0.15s, opacity 0.3s;
+text-shadow: 0 0 8px rgba(255,255,255,0.3);
+}
+#monster.boss { animation: bossFloat 2s ease-in-out infinite; text-shadow: 0 0 12px rgba(255,220,0,0.8); }
+@keyframes bossFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+#monster.hit { animation: hit 0.3s; }
+@keyframes hit {
+0%, 100% { transform: translateX(0); filter: brightness(1); }
+20% { transform: translateX(-8px); filter: brightness(3) hue-rotate(180deg); }
+40% { transform: translateX(8px); filter: brightness(3) hue-rotate(180deg); }
+60% { transform: translateX(-5px); filter: brightness(3); }
+80% { transform: translateX(5px); }
+}
+#monster.dying { animation: die 0.8s forwards; }
+@keyframes die {
+0% { opacity: 1; transform: scale(1); }
+50% { opacity: 0.7; transform: scale(1.1); filter: brightness(3); }
+100% { opacity: 0; transform: scale(0.3) rotate(180deg); }
+}
+#monster.miss-dmg { animation: miss 0.4s; }
+@keyframes miss { 0%, 100% { transform: translateX(0); } 50% { transform: scale(1.08); filter: brightness(1.3) sepia(0.3); } }
+#monsterName { font-size: 10px; color: #ffff00; letter-spacing: 1px; white-space: nowrap; }
+#problem { text-align: center; min-width: 0; }
+#problem .label { color: #ffff00; font-size: 11px; letter-spacing: 1px; margin-bottom: 3px; }
+#problem .expr {
+color: #fff;
+font-size: 18px;
+font-family: 'Times New Roman', 'Hiragino Mincho ProN', serif;
+letter-spacing: 0.5px;
+line-height: 1.35;
+}
+#skipTut {
+position: absolute; top: 4px; right: 6px;
+background: #000; color: #aaa; border: 1px solid #666;
+font-family: inherit; font-size: 10px; padding: 2px 6px; cursor: pointer;
+}
+#skipTut.hidden { display: none; }
+#problemExpr .nw { display: inline-block; white-space: nowrap; }
+/* ゲーム中に 章えらびへ もどる ボタン（れんしゅう中と ダメージの あいだは かくす） */
+#mapBtn { position: absolute; top: 5px; right: 8px; background: #000; color: #aaa; border: 1px solid #666; font-family: inherit; font-size: 10px; padding: 2px 6px; cursor: pointer; z-index: 3; }
+#mapBtn.hidden { display: none; }
+#livesDisplay { margin-right: 58px; }   /* 右上の「≡ しょう」と かさならないよう ハートを 左へ */
+@media (max-width: 360px) { #mapBtn .mbt { display: none; } #livesDisplay { margin-right: 26px; } }   /* せまい 画面は「≡」だけ */
+#problem .expr.long { font-size: 15px; }
+#problem .expr.exam { font-size: 14px; text-align: left; line-height: 1.6; word-break: keep-all; }   /* ことばの 途中で 改行しない（空白で 切る） */
+#ruleBtn { display: block; margin: 3px auto 0; white-space: nowrap; background: #000; color: #aaa; border: 1px solid #666; font-family: inherit; font-size: 10px; padding: 2px 6px; cursor: pointer; z-index: 2; }
+
+#planeWrap { flex: 1 1 0; min-height: 0; position: relative; overflow: hidden; }
+#plane {
+position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+border: 2px solid #fff; touch-action: manipulation; cursor: pointer;
+}
+
+#message {
+min-height: 48px;
+max-height: 30vh;
+max-height: 30dvh;
+overflow-y: auto;
+font-size: 12px;
+line-height: 1.55;
+letter-spacing: 0;
+white-space: pre-wrap;
+flex-shrink: 0;
+padding: 6px 10px;
+}
+
+/* — ボタン（2列。出す・隠すは問題の種類で切りかえ） — */
+#controls { padding: 2px 8px 8px; flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.key {
+background: #000; border: 2px solid #fff; color: #fff;
+font-family: inherit; font-size: 15px; font-weight: bold;
+padding: 6px 4px; cursor: pointer; text-align: center; line-height: 1.25;
+min-height: 44px; touch-action: manipulation;
+}
+.key.hidden { display: none; }
+.key:active { transform: translateY(1px); }
+.key.on { background: #fff; color: #000; }
+.key.full { grid-column: 1 / -1; }
+.key.submit { background: #004488; color: #ffff00; }
+.key.submit:disabled { background: #222; color: #666; border-color: #666; cursor: default; }
+.key.opt { font-family: 'Times New Roman', 'Hiragino Mincho ProN', serif; font-weight: normal; font-size: 16px; }
+.key.right { background: #005522; color: #fff; border-color: #44ff88; }
+.key.wrong { background: #551111; color: #fff; border-color: #ff4444; }
+.key .eq { display: block; font-size: 10px; font-weight: normal; letter-spacing: 1px; opacity: 0.85; }
+#mineBtn, #ansBtn { font-size: 13px; min-height: 38px; word-break: keep-all; }
+.key.pulse { animation: pulse 0.9s ease-in-out infinite; }
+@keyframes pulse { 50% { background: #ffff00; color: #000; border-color: #ffff00; box-shadow: 0 0 0 3px #ffff00; } }
+
+/* — TeX 風の分数と根号（外から読み込まずに描く） — */
+.fr { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; font-size: 0.78em; line-height: 1.08; margin: 0 2px; }
+.fr > .nu { border-bottom: 1.5px solid currentColor; padding: 0 3px 1px; }
+.fr > .de { padding: 1px 3px 0; }
+.rt { white-space: nowrap; }
+.bar { display: inline-block; width: 1.9em; height: 6px; border-radius: 2px; vertical-align: middle; margin: 3px 1px; }
+.bar.o { background: #ff9f43; }
+.bar.b { background: #4f8dff; }
+/* 図を 使わない ゲーム：図の 場所を なくし、問題の 式を 大きく まんなかに */
+#game.nofig #planeWrap { display: none; }
+#game.nofig #battle { flex: 1 1 auto; min-height: 0; }
+#game.nofig #problem .expr { font-size: 30px; line-height: 1.6; }
+#problem .expr { font-size: 20px; line-height: 1.5; }
+#game.nofig #problem .expr.long { font-size: 26px; }
+#problem .expr.long { font-size: 17px; }
+#game.nofig #problem .expr.exam { font-size: 19px; }
+#problem .label { font-size: 14px; margin-bottom: 10px; }
+#monster { font-size: 46px; }
+@media (max-width: 360px) { #game.nofig #problem .expr { font-size: 25px; } #game.nofig #problem .expr.long { font-size: 22px; } #game.nofig #problem .expr.exam { font-size: 16px; } }
+#problem .expr .fr { font-size: 0.85em; }
+#defPoints .defr { font-family: 'Times New Roman', 'Hiragino Mincho ProN', serif; font-size: 16px; margin-top: 4px; }
+#defPoints .fr { font-size: 0.82em; }
+.rad { border-top: 1.5px solid currentColor; padding: 0 1px; margin-left: -1px; }
+/* — チュートリアルの指 — */
+/* 輪の中心が left/top（点の位置）に来て、指と文字はその下 */
+#tapHint { position: absolute; z-index: 5; pointer-events: none; transform: translate(-50%, 0); padding-top: 20px; text-align: center; }
+#tapHint.hidden, #btnHint.hidden { display: none; }
+#tapHint .ring {
+position: absolute; left: 50%; top: 0; width: 46px; height: 46px; margin: -23px 0 0 -23px;
+border: 3px solid #ffff00; border-radius: 50%; animation: ring 1s ease-out infinite;
+}
+@keyframes ring { 0% { transform: scale(0.4); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+#tapHint .finger { display: block; font-size: 34px; animation: tap 0.8s ease-in-out infinite; }
+@keyframes tap { 50% { transform: translateY(6px); } }
+#tapHint .txt {
+display: inline-block; margin-top: 2px; padding: 1px 6px; background: #000; border: 2px solid #ffff00;
+color: #ffff00; font-size: 12px; font-weight: bold; white-space: nowrap;
+}
+#btnHint {
+position: absolute; z-index: 60; pointer-events: none; font-size: 30px;
+transform: translate(-50%, -100%); animation: tapDown 0.8s ease-in-out infinite;
+}
+@keyframes tapDown { 50% { margin-top: 6px; } }
+
+/* — オーバーレイ — */
+.overlay {
+position: absolute; inset: 0; background: #000;
+display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+padding: 24px; z-index: 100; text-align: center;
+overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+/* 入りきる ときは まんなか、入りきらない ときは 上から スクロール（章が ふえても 下の ボタンまで とどく）。上下の 見えない すきまで まんなかに よせる */
+.overlay::before, .overlay::after { content: ''; flex: 1 0 0; }
+.overlay.hidden { display: none; }
+.overlay h1 { font-size: 28px; color: #ffff00; letter-spacing: 3px; margin-bottom: 20px; text-shadow: 3px 3px 0 #884400; line-height: 1.4; }
+.overlay p { font-size: 14px; color: #fff; line-height: 2; margin-bottom: 16px; letter-spacing: 1px; }
+.overlay .sub { color: #aaa; font-size: 12px; }
+.overlay .start-btn {
+background: #000; border: 3px solid #fff; box-shadow: 0 0 0 3px #000, 0 0 0 5px #fff;
+color: #ffff00; padding: 14px 28px; font-size: 16px; letter-spacing: 3px; cursor: pointer; margin-top: 20px; font-family: inherit;
+}
+.overlay .start-btn:active { background: #fff; color: #000; }
+.overlay .how-btn {
+background: #000; border: 2px solid #888; color: #ccc;
+padding: 8px 18px; font-size: 13px; letter-spacing: 2px; cursor: pointer; margin-top: 18px; font-family: inherit;
+}
+.overlay .hero { font-size: 64px; margin-bottom: 12px; }
+#chapterList { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 360px; }
+.chap { background: #000; border: 2px solid #fff; color: #fff; font-family: inherit; font-size: 14px; padding: 8px 10px; text-align: left; cursor: pointer; }
+.chap .unit { display: block; font-size: 11px; color: #aaa; margin-top: 2px; word-break: keep-all; }
+.chap.locked { color: #666; border-color: #444; cursor: default; }
+.chap.reset { border-color: #888; color: #ccc; margin-top: 8px; }
+.how-btn.hidden { display: none; }
+.overlay .points {
+text-align: left; border: 3px solid #fff; box-shadow: 0 0 0 3px #000, 0 0 0 5px #fff;
+padding: 12px 14px; margin: 4px 0 8px; font-size: 13px; line-height: 2; letter-spacing: 0.5px;
+}
+.overlay .points b { color: #ffff00; }
+
+.dmg-float { position: absolute; font-size: 24px; font-weight: bold; pointer-events: none; animation: dmgFloat 1s forwards; z-index: 10; }
+@keyframes dmgFloat {
+0% { opacity: 1; transform: translateY(0) scale(0.6); }
+30% { transform: translateY(-16px) scale(1.2); }
+100% { opacity: 0; transform: translateY(-44px) scale(1); }
+}
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 50; }
+#flash.on { animation: flash 0.2s; }
+@keyframes flash { 0% { opacity: 0; } 50% { opacity: 0.6; } 100% { opacity: 0; } }
+.level-up {
+position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+font-size: 32px; color: #ffff00; text-shadow: 3px 3px 0 #884400, 0 0 16px #ffff00;
+letter-spacing: 4px; z-index: 20; animation: lvUp 1.8s forwards; pointer-events: none; white-space: nowrap;
+}
+@keyframes lvUp {
+0% { opacity: 0; transform: translate(-50%, -30%) scale(0.5); }
+20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
+}
+@media (max-height: 640px) {
+#status { line-height: 1.5; }
+#monster { font-size: 32px; }
+.key { min-height: 40px; font-size: 14px; }
+}
+#controls .nw { display: inline-block; white-space: nowrap; }
+/* — ボス戦 — */
+#game.boss-mid .rpg-window { border-color: #ff5a5a; box-shadow: 0 0 0 3px #000, 0 0 0 5px #ff5a5a; }
+#game.boss-final .rpg-window { border-color: #ffcc33; box-shadow: 0 0 0 3px #000, 0 0 0 5px #ffcc33; }
+#game.boss-mid #plane { border-color: #ff5a5a; }
+#game.boss-final #plane { border-color: #ffcc33; }
+.boss-warn {
+position: absolute; left: 0; right: 0; top: 38%; z-index: 40; pointer-events: none; text-align: center;
+font-size: 34px; font-weight: bold; letter-spacing: 4px; color: #fff; background: rgba(180,0,0,0.85);
+padding: 14px 0; text-shadow: 3px 3px 0 #400; animation: warn 2s forwards;
+}
+.boss-warn.final { background: rgba(170,120,0,0.9); text-shadow: 3px 3px 0 #430; }
+@keyframes warn { 0%, 20%, 40%, 60% { opacity: 1; } 10%, 30%, 50% { opacity: 0.35; } 85% { opacity: 1; } 100% { opacity: 0; } }
+.level-up.crit { color: #ff9900; font-size: 26px; text-shadow: 3px 3px 0 #662200, 0 0 18px #ff6600; }
+.chap .stars { float: right; color: #ffd84a; letter-spacing: 1px; }
+.chap .stars .dim { color: #444; }
+#progressDisplay { letter-spacing: 0; }
+#controls.three { grid-template-columns: 1fr 1fr 1fr; }
+#controls.three .key.opt { font-size: 20px; font-family: inherit; font-weight: bold; }
+.zukan-btn { background: #000; border: 2px solid #7fe8ff; color: #7fe8ff; font-family: inherit; font-size: 13px; padding: 6px 10px; margin-bottom: 10px; cursor: pointer; width: 100%; max-width: 360px; }
+.comp { color: #ffd84a; font-size: 15px; letter-spacing: 1px; margin-bottom: 8px; text-shadow: 0 0 10px rgba(255,216,74,0.6); }
+.comp.hidden { display: none; }
+#zukanList { width: 100%; max-width: 380px; text-align: left; font-size: 12px; line-height: 1.5; }
+#zukanList .zch { color: #ffff00; margin: 8px 0 2px; font-size: 12px; }
+#zukanList .zi { border: 1px solid #555; padding: 3px 6px; margin-bottom: 3px; display: grid; grid-template-columns: 18px 26px 1fr; align-items: center; }
+#zukanList .zi .mk { font-size: 14px; }
+#zukanList .zi .sp { font-size: 18px; text-align: center; }
+#zukanList .zi .tip { grid-column: 2 / -1; color: #aaa; font-size: 11px; }
+#zukanList .zi.lock { color: #555; }
+#zukanList .zi.got .mk { color: #ffd84a; }
+#zukanList .zi.master .mk { color: #44ff88; }
+#zukanList .zi.mabz { border: 2px solid #ffd84a; box-shadow: 0 0 6px rgba(255,216,74,0.7), inset 0 0 6px rgba(255,120,220,0.35); }
+#zukanList .zi.mabz.lock { color: #a08a3a; }
+#monster.mab { animation: bossFloat 1.6s ease-in-out infinite, mabHue 2.4s linear infinite; text-shadow: 0 0 12px #ff7ad9, 0 0 18px #7fe8ff; }
+@keyframes mabHue { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+.boss-warn.mab { background: linear-gradient(90deg, rgba(255,90,180,0.85), rgba(255,216,74,0.9), rgba(90,200,255,0.85)); text-shadow: 3px 3px 0 #403; }
+/* せまい 画面：問題集の ことばを 少し 小さく、メッセージ欄を 少し 低く（図を のこす） */
+@media (max-width: 360px) { #problem .expr.exam { font-size: 13px; line-height: 1.45; } }
+@media (max-height: 640px) { #message { max-height: 22vh; max-height: 22dvh; } #problem .expr.exam { line-height: 1.4; } }
+
+/* — 選択肢が 長い とき（実際の 幅を 測って 文字を 小さく → 1列）。列は 中身に 押し広げられない — */
+#controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#controls.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#controls.one { grid-template-columns: minmax(0, 1fr); }
+.key { min-width: 0; max-width: 100%; overflow: hidden; }
+#game, #status, #message, #battle, #problem, #controls { min-width: 0; max-width: 100%; }
+#game { max-width: 480px; }   /* パソコンでも スマホの 幅で まんなかに（すぐ 上の 行で 100% に 広がらない ように。2026-10-27）*/
+#problem .expr.exam { display: inline-block; max-width: 100%; }   /* 問題集の ことばは かたまりごと まんなかに（行の 頭は そろえる） */
+#status .row { min-width: 0; gap: 4px; }
+#status .row .value { min-width: 0; word-break: keep-all; overflow-wrap: break-word; text-align: right; }   /* ことばの 途中で 折らない（空白で 折る） */
+#message { overflow-wrap: anywhere; }
+#problemExpr { overflow-wrap: break-word; }
+#status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#status .label { white-space: nowrap; }
+#status .row:not(.wide) .value { white-space: nowrap; }
+@media (max-width: 300px) { #status { column-gap: 6px; padding: 4px 6px; } }
+/* 文字が 大きい 設定で 縦に 入りきらない ときは 画面を 縦に スクロール（図は 100px より 小さく しない） */
+#game { overflow-y: auto; overflow-x: hidden; }
+#planeWrap { min-height: 100px; }
+#message { flex-shrink: 1; min-height: 48px; }   /* 縦が 足りない ときは まず メッセージを 小さく（中で スクロール）して ボタンを 画面に のこす */
+/* ことばの 途中で 改行しない（空白の ところで 折る。長すぎる ときだけ どこでも）*/
+#message, .overlay .points, .overlay p, #zukanList .tip { word-break: keep-all; overflow-wrap: anywhere; }
+.ov { border-top: 1.5px solid currentColor; padding-top: 1px; margin: 0 1px; }   /* 補集合の 上の 線 */
+#plane.blank { border-color: transparent; background: transparent; }   /* 図の ない 問題 */
+#hintBtn { display: block; margin: 4px auto 0; white-space: nowrap; background: #000; color: #ffd84a; border: 1px solid #ffd84a; font-family: inherit; font-size: 11px; padding: 2px 6px; cursor: pointer; }
+#hintBtn.hidden { display: none; }
+#hintBtn.used { color: #887a3a; border-color: #887a3a; }
+.rt { white-space: nowrap; }
+.rt .ri { font-size: 0.55em; vertical-align: 0.95em; line-height: 0; margin-right: -0.3em; }
+.rt .rad { display: inline-block; border-top: 1.5px solid currentColor; padding: 0.06em 2px 0 1px; margin-left: 0; line-height: 1.2; }
+sup.ex { font-size: 0.68em; vertical-align: 0.62em; line-height: 0; margin-left: 1px; }   /* 指数 */
+.fr sup.ex { font-size: 0.8em; }
+#defPoints .defr { font-family: 'Times New Roman', 'Hiragino Mincho ProN', serif; font-size: 17px; margin: 2px 0 6px 12px; }
+</style>
+</head>
+<body>
+<div id="game">
+
+  <div class="overlay" id="titleScreen">
+    <div class="hero">🌱</div>
+    <h1>累乗根クエスト</h1>
+    <p class="sub">～数学Ⅱ 指数関数～</p>
+    <p class="comp hidden" id="compTitle"></p>
+    <p style="margin-top:20px;">累乗根は すぐ 指数に！<br>直して 指数法則で たおせ！</p>
+    <button class="start-btn" id="startBtn">▶ はじめる</button>
+    <button class="how-btn" id="howBtn">？ あそびかた</button>
+    <p class="sub" style="margin-top:20px;font-size:10px;">どの 章からでも、何回でも。<br>ぜんぶの 章を ★3 に すると さいごの 章</p>
+    <p class="sub" style="margin-top:14px;font-size:9px;opacity:0.7;">© 2026 math-terakoya　CC BY-NC-SA 4.0</p>
+  </div>
+
+  <div class="overlay hidden" id="tutDoneScreen">
+    <div class="hero">🎯</div>
+    <h1>れんしゅう<br>クリア！</h1>
+    <div class="points">
+      <div>・<b>累乗根</b>：n乗して a に なる 数（n が 偶数なら 正の 方）</div>
+      <div>・<b>すぐ 指数に</b>：<span data-m="√[n]{a^{m}} ＝ a^{{m|n}}"></span></div>
+      <div>・<b>底を そろえる</b>：<span data-m="4 ＝ 2^{2}"></span></div>
+    </div>
+    <button class="start-btn" id="goBtn">▶ しょうえらびへ</button>
+  </div>
+
+  <div class="overlay hidden" id="defScreen">
+    <h1 style="font-size:20px;margin-bottom:8px;">累乗根と 指数</h1>
+    <div class="points" id="defPoints">
+      <div>・<b>累乗根</b>：n乗して a に なる 数</div>
+      <div class="defr" data-m="2^{4} ＝ 16 → √[4]{16} ＝ 2"></div>
+      <div>　n が 偶数 → 正の 方（a ＜ 0 なら 実数では ない）</div>
+      <div>　n が 奇数 → 1つ（<span data-m="√[3]{−8} ＝ −2"></span>）</div>
+      <div>・<b>すぐ 指数に 直す</b>（中が 分子、左上が 分母）</div>
+      <div class="defr" data-m="√[n]{a^{m}} ＝ a^{{m|n}}　√{a} ＝ a^{{1|2}}"></div>
+      <div class="defr" data-m="{1|a^{r}} ＝ a^{−r}"></div>
+      <div>・<b>指数法則</b></div>
+      <div class="defr" data-m="a^{r} × a^{s} ＝ a^{r ＋ s}　{a^{r}|a^{s}} ＝ a^{r − s}"></div>
+      <div class="defr" data-m="(a^{r})^{s} ＝ a^{rs}"></div>
+    </div>
+    <button class="start-btn" id="defClose">▶ たたかう</button>
+  </div>
+
+  <div class="overlay hidden" id="ruleScreen">
+    <div class="hero">📏</div>
+    <h1 style="font-size:20px;">この ゲームの 約束</h1>
+    <div class="points">
+      <div>・計算は しない。どの 指数に なるか・指数を 何算 するかを えらぶ</div>
+      <div>・累乗根は すぐ 指数に 直す</div>
+      <div>・文字 a は a ＞ 0、□ は 求める 指数</div>
+    </div>
+    <button class="how-btn" id="ruleDef">📐 累乗根と 指数</button>
+    <button class="start-btn" id="ruleClose">▶ もどる</button>
+  </div>
+
+  <div class="overlay hidden" id="mapScreen">
+    <h1 style="font-size:20px;margin-bottom:6px;">しょうを えらべ</h1>
+    <p class="sub" id="mapLV" style="margin-bottom:8px;">ゆうしゃ LV 1</p>
+    <p class="comp hidden" id="mapComp"></p>
+    <button class="zukan-btn" id="zukanBtn">📖 モンスターずかん</button>
+    <div id="chapterList"></div>
+  </div>
+
+  <div class="overlay hidden" id="zukanScreen">
+    <h1 style="font-size:20px;margin-bottom:4px;">📖 モンスターずかん</h1>
+    <p class="comp hidden" id="zukanComp"></p>
+    <p class="sub" id="zukanCount" style="margin-bottom:4px;"></p>
+    <p class="sub" style="margin-bottom:4px;font-size:11px;line-height:1.6;">○ たおした　◎ にがてを こくふく した<br>（ボスの ◎ は ノーミスで たおした）</p>
+    <div id="zukanList"></div>
+    <button class="start-btn" id="zukanClose">▶ もどる</button>
+  </div>
+
+  <div class="overlay hidden" id="clearScreen">
+    <div class="hero" id="clearHero">🏰</div>
+    <h1 id="clearTitle">たおした！</h1>
+    <p id="clearText" style="white-space:pre-line;"></p>
+    <button class="start-btn" id="clearBtn">▶ しょうえらびへ</button>
+    <button class="how-btn" id="againBtn">🔁 もう一回</button>
+    <button class="how-btn hidden" id="resetBtn1">🔄 さいしょから あそぶ</button>
+  </div>
+
+  <div class="overlay hidden" id="resetScreen">
+    <div class="hero">🔄</div>
+    <h1 style="font-size:20px;">さいしょから あそぶ？</h1>
+    <p>★・LV・モンスターずかんの きろくが きえて、LV 1 から に なります。</p>
+    <button class="start-btn" id="resetYes">さいしょから</button>
+    <button class="how-btn" id="resetNo">やめる</button>
+  </div>
+
+  <div class="overlay hidden" id="quitScreen">
+    <div class="hero">🗺️</div>
+    <h1 style="font-size:20px;">しょうえらびに もどる？</h1>
+    <p>この 章は さいしょから やりなおしに なります。</p>
+    <button class="start-btn" id="quitYes">もどる</button>
+    <button class="how-btn" id="quitNo">つづける</button>
+  </div>
+
+  <div class="overlay hidden" id="gameOverScreen">
+    <div class="hero">💀</div>
+    <h1 style="color:#ff4444;text-shadow:3px 3px 0 #440000;">ぜんめつ…</h1>
+    <p>ゆうしゃは たおれてしまった…</p>
+    <p class="sub">この 章の さいしょから</p>
+    <button class="start-btn" id="retryBtn">▶ やりなおす</button>
+    <button class="how-btn" id="toMapBtn">しょうえらびへ</button>
+  </div>
+
+  <div class="rpg-window" id="status">
+    <button id="mapBtn" class="hidden">≡<span class="mbt"> しょう</span></button>
+    <div class="row"><span class="label">ゆうしゃ</span><span class="value" id="levelDisplay">LV 1</span></div>
+    <div class="row"><span class="label">ライフ</span><span class="value hearts" id="livesDisplay">♥♥♥</span></div>
+    <div class="row"><span class="label">こうげき</span><span class="value" id="attackDisplay">2</span></div>
+    <div class="row"><span class="label">てき</span><span class="value" id="enemyHpDisplay">HP 1</span></div>
+    <div class="row wide"><span class="label">しょう</span><span class="value" id="progressDisplay">&nbsp;</span></div>
+  </div>
+
+  <div class="rpg-window" id="message"><span id="msgText">&nbsp;</span></div>
+
+  <div class="rpg-window" id="battle">
+    <button id="skipTut" class="hidden">とばす ▶▶</button>
+    <div id="enemy"><div id="monster">🔍</div><div id="monsterName">ルートイミ</div><button id="ruleBtn">？ やくそく</button><button id="hintBtn" class="hidden">💡 ヒント</button></div>
+    <div id="problem">
+      <div class="label" id="problemLabel">&nbsp;</div>
+      <div class="expr" id="problemExpr">&nbsp;</div>
+    </div>
+  </div>
+
+  <div id="planeWrap"><canvas id="plane" width="300" height="150"></canvas>
+    <div id="tapHint" class="hidden"><div class="ring"></div><span class="finger">👆</span><span class="txt">ここを タップ</span></div>
+  </div>
+
+  <div id="controls">
+    <button class="key opt hidden" data-i="0"></button>
+    <button class="key opt hidden" data-i="1"></button>
+    <button class="key opt hidden" data-i="2"></button>
+    <button class="key opt hidden" data-i="3"></button>
+    <button class="key hidden" id="mineBtn">じぶんの こたえ</button>
+    <button class="key hidden" id="ansBtn">ただしい ず</button>
+    <button class="key submit full" id="decideBtn">けってい</button>
+    <button class="key full hidden" id="nextBtn">▼ つぎへ</button>
+  </div>
+
+  <div id="btnHint" class="hidden">👇</div>
+  <div id="flash"></div>
+</div>
+
+<!-- ========== しくみ（問題づくり・正解の 判定・図鑑）。画面には 触らない ========== -->
+<script id="core">
+(function (G) {
+'use strict';
+// 累乗根クエスト：累乗根は すぐ 指数に 直す。どの 指数に なるか・指数を 何算 するかを 判断する（値の 計算は させない）
+const FIG = { ASPECT: 0.56 };
+function mulberry32(seed) {
+  let t = seed >>> 0;
+  return function () {
+    t = (t + 0x6D2B79F5) >>> 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function ri(rng, lo, hi) { return lo + Math.floor(rng() * (hi - lo + 1)); }
+function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
+function shuffle(rng, arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+// 書き方：a^{3}（指数）、{1|2}（横線の 分数）、√[3]{8}（3乗根）、√{a}（2乗根は 左上の 2 を 書かない）、□（求める 指数）
+const fr = (a, b) => '{' + a + '|' + b + '}';
+const pw = (b, e) => b + '^{' + e + '}';
+const rt = (n, x) => (n === 2 ? '√{' + x + '}' : '√[' + n + ']{' + x + '}');
+// 指数（分数も）：[分子, 分母]
+function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) [a, b] = [b, a % b]; return a || 1; }
+const Q = (n, d = 1) => { if (d < 0) { n = -n; d = -d; } const g = gcd(n, d); return [n / g, d / g]; };
+const qs = ([n, d]) => (d === 1 ? (n < 0 ? '−' + -n : String(n)) : (n < 0 ? '−' : '') + fr(Math.abs(n), d));   // 指数の 中で 書く 形
+const qp = e => (e[0] < 0 ? '(' + qs(e) + ')' : qs(e));   // 式の 中の 2つめ いこうは マイナスを かっこに
+const qadd = (a, b) => Q(a[0] * b[1] + b[0] * a[1], a[1] * b[1]);
+const qsub = (a, b) => Q(a[0] * b[1] - b[0] * a[1], a[1] * b[1]);
+const qmul = (a, b) => Q(a[0] * b[0], a[1] * b[1]);
+const qk = e => e[0] + ':' + e[1];   // 値で くらべる ための 鍵（同じ 値の はずれは 入れない）
+const NONE = '実数では ない';
+
+// ---------- 項：[n, k] ＝ √[n]{a^{k}}（第4章は 底 B の 数 B^{k}）----------
+const TERMS = [[2, 1], [3, 1], [3, 2], [4, 1], [4, 3], [6, 1], [2, 3], [6, 5]];
+const ex = t => Q(t[1], t[0]);                                         // √[n]{a^{k}} ＝ a^{k/n}
+const aTerm = t => rt(t[0], t[1] === 1 ? 'a' : pw('a', t[1]));
+const bTerm = (B, t) => rt(t[0], String(Math.pow(B, t[1])));
+const aPow = e => pw('a', qs(e));
+// 第3章：式の 形（かける・わる・セット乗・まとめ）。es は 指数の ならび、tx は 項の 文字
+function shape(m, xs, pk) {
+  if (m === 'cMul') return xs[0] + ' × ' + xs[1];
+  if (m === 'cDiv') return fr(xs[0], xs[1]);
+  if (m === 'cPow') return '(' + xs[0] + ')^{' + pk + '}';
+  return fr(xs[0] + ' × ' + xs[1], xs[2]);   // cMix
+}
+function shapeVal(m, es, pk) {
+  if (m === 'cMul') return qadd(es[0], es[1]);
+  if (m === 'cDiv') return qsub(es[0], es[1]);
+  if (m === 'cPow') return qmul(es[0], Q(pk));
+  return qsub(qadd(es[0], es[1]), es[2]);
+}
+const exprC = q => shape(q.mode, q.t.map(aTerm), q.pk);
+const convC = q => shape(q.mode, q.t.map(t => aPow(ex(t))), q.pk);
+const RIGHT = { cMul: 'add', cDiv: 'sub', cPow: 'mul', bMul: 'add', bDiv: 'sub' };
+const OP = { add: ' ＋ ', sub: ' − ', mul: ' × ' };
+const opVal = (a, b, op) => (op === 'add' ? qadd(a, b) : op === 'sub' ? qsub(a, b) : qmul(a, b));
+const WRONG_OP = { add: 'addw', sub: 'subw', mul: 'mulw' };
+function rootInt(n, a) { return Math.round(Math.pow(a, 1 / n)); }
+// 第4章の 式
+function exprB(q) {
+  const T = q.t.map(t => bTerm(q.B, t));
+  if (q.mode === 'bRoot') return T[0];
+  if (q.mode === 'bMul') return T[0] + ' × ' + T[1];
+  if (q.mode === 'bDiv') return fr(T[0], T[1]);
+  return fr(q.B + ' × ' + T[0], T[1]);   // bOne
+}
+
+function makeOptions(q, rng) {
+  const c = [], add = (text, key, types) => c.push({ text, key: String(key), types });
+  const addE = (e, types) => add(qs(e), qk(e), types);
+  const m = q.mode;
+  let fixed = false;
+  // 第1章 累乗根の 意味
+  if (m === 'rtDef') {
+    const { n, a } = q;
+    add(n + '乗して ' + a + ' に なる 正の 数', 'r', []); add(n + '乗して ' + a + ' に なる 数（正と 負）', 'pm', ['pm']);
+    add(a + ' を ' + n + ' で わった 数', 'div', ['div']); add(a + ' の ' + n + '乗', 'pow', ['pow']);
+  }
+  if (m === 'rtVal') {
+    const { n, a } = q, b = rootInt(n, a);
+    add(String(b), b, []); add('±' + b, 'pm', ['pm']); add('−' + b, -b, ['neg']);
+    if (a % n === 0 && a / n !== b) add(String(a / n), a / n, ['div']); else add(NONE, 'none', ['none']);
+  }
+  if (m === 'rtNeg') {   // 中が 負：奇数乗根は 負の 数、偶数乗根は 実数では ない
+    const { n, a } = q, b = rootInt(n, -a);
+    if (n % 2) { add('−' + b, -b, []); add(String(b), b, ['drop']); add('±' + b, 'pm', ['pm']); add(NONE, 'none', ['none']); }
+    else { add(NONE, 'none', []); add('−' + b, -b, ['evenneg']); add(String(b), b, ['drop']); add('±' + b, 'pm', ['pm']); }
+  }
+  if (m === 'rtAbs') { const { b } = q; add(String(b), b, []); add('−' + b, -b, ['abs']); add('±' + b, 'pm', ['pm']); add(NONE, 'none', ['none']); }
+  // 第2章 指数に 直す
+  if (m === 'toExp' || m === 'toSq') {
+    const { n, k } = q;
+    addE(Q(k, n), []); addE(Q(n, k), ['flip']);
+    if (n === 2) addE(Q(k), ['hide2']); else addE(Q(1, n), ['inner']);
+    addE(Q(k * n), ['mul']);
+  }
+  if (m === 'toRec') { const { n, k } = q; addE(Q(-k, n), []); addE(Q(k, n), ['inv']); addE(Q(-n, k), ['flip']); addE(Q(n, k), ['inv', 'flip']); }
+  if (m === 'toNest') { const { p, r } = q; addE(Q(1, p * r), []); addE(qadd(Q(1, p), Q(1, r)), ['add']); addE(Q(p * r), ['flip']); addE(Q(1, r), ['outer']); }
+  // 第3章 直してから 計算（連れ問）① 指数で 表すと？
+  if (['cMul', 'cDiv', 'cPow', 'cMix'].includes(m) && q.st !== 2) {
+    fixed = false;
+    const es = q.t.map(ex), opt = (es2, types) => add(shape(m, es2.map(aPow), q.pk), qk(shapeVal(m, es2, q.pk)), types);
+    opt(es, []);
+    opt(q.t.map(t => Q(t[0], t[1])), ['flip']);
+    if (q.t.some(t => t[0] === 2)) opt(q.t.map(t => (t[0] === 2 ? Q(t[1]) : ex(t))), ['hide2']);
+    if (m === 'cMul') { const [s, u] = q.t; add(rt(s[0] + u[0], pw('a', s[1] + u[1])), qk(Q(s[1] + u[1], s[0] + u[0])), ['inside']); }
+    if (m === 'cDiv') add(fr(aPow(es[1]), aPow(es[0])), qk(qsub(es[1], es[0])), ['updown']);
+    if (m === 'cMix') add(fr(aPow(es[2]), aPow(es[0]) + ' × ' + aPow(es[1])), qk(qsub(es[2], qadd(es[0], es[1]))), ['updown']);
+    if (m === 'cPow') add(q.pk + aPow(es[0]), 'coef', ['coef']);
+    if (q.t.some(t => t[1] >= 2)) opt(q.t.map(t => Q(1, t[0])), ['inner']);
+  }
+  // 第3章 ② 指数は どう する？
+  if (['cMul', 'cDiv', 'cPow'].includes(m) && q.st === 2) {
+    const es = q.t.map(ex), a = es[0], b = m === 'cPow' ? Q(q.pk) : es[1], right = RIGHT[m];
+    add(qs(a) + OP[right] + qp(b), qk(opVal(a, b, right)), []);
+    ['add', 'sub', 'mul'].filter(o => o !== right).forEach(o => add(qs(a) + OP[o] + qp(b), qk(opVal(a, b, o)), [WRONG_OP[right]]));
+  }
+  if (m === 'cMix' && q.st === 2) {
+    const [x, y, z] = q.t.map(ex);
+    add(qs(x) + ' ＋ ' + qp(y) + ' − ' + qp(z), qk(qsub(qadd(x, y), z)), []);
+    add(qs(x) + ' ＋ ' + qp(y) + ' ＋ ' + qp(z), qk(qadd(qadd(x, y), z)), ['subw']);
+    add(qs(x) + ' × ' + qp(y) + ' × ' + qp(z), qk(qmul(qmul(x, y), z)), ['addw']);
+    add(qs(x) + ' − ' + qp(y) + ' − ' + qp(z), qk(qsub(qsub(x, y), z)), ['addw']);
+  }
+  // 第4章 底を そろえる（数）
+  if (m === 'bRoot') { const [n, k] = q.t[0]; addE(Q(k, n), []); addE(Q(1, n), ['nobase']); addE(Q(n, k), ['flip']); addE(Q(k * n), ['mul']); }
+  if (m === 'bMul' || m === 'bDiv') {
+    const right = RIGHT[m], es = q.t.map(ex), nb = q.t.map(t => Q(1, t[0]));
+    const two = (a, b, o) => qs(a) + OP[o] + qp(b);
+    add(two(es[0], es[1], right), qk(opVal(es[0], es[1], right)), []);
+    add(two(nb[0], q.t[1][1] === 1 ? es[1] : nb[1], right), qk(opVal(nb[0], q.t[1][1] === 1 ? es[1] : nb[1], right)), ['nobase']);
+    ['add', 'sub', 'mul'].filter(o => o !== right).forEach(o => add(two(es[0], es[1], o), qk(opVal(es[0], es[1], o)), [WRONG_OP[right]]));
+  }
+  if (m === 'bOne') {   // B × √[n]{B^{k}} を √[n2]{B} で わる：B ＝ B^{1}
+    const [x, y] = q.t.map(ex), one = Q(1);
+    add('1 ＋ ' + qp(x) + ' − ' + qp(y), qk(qsub(qadd(one, x), y)), []);
+    add(qs(x) + ' − ' + qp(y), qk(qsub(x, y)), ['one']);
+    add('1 ＋ ' + qp(x) + ' ＋ ' + qp(y), qk(qadd(qadd(one, x), y)), ['subw']);
+    add('1 ＋ ' + qp(Q(1, q.t[0][0])) + ' − ' + qp(y), qk(qsub(qadd(one, Q(1, q.t[0][0])), y)), ['nobase']);
+  }
+  const seen = new Set(), out = [];
+  for (const x of c) { if (seen.has(x.key) || out.some(o => o.text === x.text)) continue; seen.add(x.key); out.push(x); if (out.length === 4) break; }
+  const opts = out.map(x => ({ text: x.text, key: x.key, types: x.types, correct: !x.types.length }));
+  return fixed ? opts : shuffle(rng, opts);
+}
+
+// ---------- 問題の 文：[ラベル, 短い 言い方]、問題集の ことば、式 ----------
+function texts(q) {
+  const m = q.mode, two = q.st === 2;
+  if (m === 'rtDef') { const e = rt(q.n, q.a); return [['▼ 累乗根の 意味', e + ' とは？'], [e + ' は どんな 数か。'], e]; }
+  if (m === 'rtVal' || m === 'rtNeg') { const e = rt(q.n, q.a < 0 ? '−' + -q.a : q.a); return [['▼ 値は？', e + ' ＝ ？'], ['次の 値を 求めよ。' + (m === 'rtNeg' ? '実数で ない ときは「実数では ない」と 答えよ。' : '') + '　' + e], e]; }
+  if (m === 'rtAbs') { const e = rt(q.n, pw('(−' + q.b + ')', q.n)); return [['▼ 値は？', e + ' ＝ ？'], ['次の 値を 求めよ。　' + e], e]; }
+  if (['toExp', 'toSq', 'toRec', 'toNest'].includes(m)) {
+    const e = m === 'toNest' ? rt(q.p, rt(q.r, 'a')) : m === 'toRec' ? fr(1, aTerm([q.n, q.k])) : aTerm([q.n, q.k]);
+    return [['▼ 指数に 直す', e + ' ＝ ' + pw('a', '□') + '　□ は？'], ['a ＞ 0 と する。' + e + ' を ' + pw('a', 'r') + ' の 形で 表せ。'], e];
+  }
+  if (['cMul', 'cDiv', 'cPow', 'cMix'].includes(m)) {
+    const e = exprC(q), cv = convC(q);
+    if (!two) return [['▼ ① 指数に 直すと？', e + '　指数で 表すと？'], ['a ＞ 0 と する。次の 式を 計算せよ。' + e + '　まず 累乗根を 指数で 表せ。'], e];
+    return [['▼ ② 指数は どう する？', cv + ' ＝ ' + pw('a', '□') + '　□ は？'], ['指数で 表すと ' + cv + '。これを ' + pw('a', 'r') + ' の 形に せよ。r は？'], cv];
+  }
+  const e = exprB(q), B = q.B;
+  if (m === 'bRoot') return [['▼ 底を そろえる', e + ' ＝ ' + pw(B, '□') + '　□ は？'], [e + ' を ' + B + ' の 累乗で 表せ。'], e];
+  return [['▼ 底を そろえて', e + ' ＝ ' + pw(B, '□') + '　□ は？'], ['次の 式を ' + B + ' の 累乗で 表せ。　' + e], e];
+}
+
+// ---------- 理由（まちがえた ときに 出す）----------
+const RULE = { add: 'かけ算 → 指数の たしざん（a^{r} × a^{s} ＝ a^{r ＋ s}）', sub: 'わり算（分数）→ 指数の ひきざん（{a^{r}|a^{s}} ＝ a^{r − s}）', mul: '( )の セット乗 → 指数の かけざん（(a^{r})^{s} ＝ a^{rs}）' };
+function reasonLines(q) {
+  const m = q.mode, L = [], add = s => L.push(s);
+  if (m === 'rtDef' || m === 'rtVal') {
+    const { n, a } = q, b = rootInt(n, a);
+    add(rt('n', 'a') + '：n乗して a に なる 数。n が 偶数の ときは 正の 方');
+    add(pw(b, n) + ' ＝ ' + a + ' → ' + rt(n, a) + ' ＝ ' + b + '（−' + b + ' は 入れない）');
+    if (m === 'rtDef') add(n + ' で わる のでも、' + n + '乗 するの でも ない');
+  }
+  if (m === 'rtNeg') {
+    const { n, a } = q, b = rootInt(n, -a), e = rt(n, '−' + -a);
+    if (n % 2) { add(n + ' は 奇数 → ' + n + '乗して ' + a + ' に なる 実数が 1つ ある（負の 数）'); add(pw('(−' + b + ')', n) + ' ＝ ' + a + ' → ' + e + ' ＝ −' + b); }
+    else { add(n + ' は 偶数 → ' + n + '乗は 0 いじょう → 負の 数の ' + n + '乗根は 実数では ない'); add(pw('(±' + b + ')', n) + ' ＝ ' + -a + '（' + a + ' に ならない）'); }
+  }
+  if (m === 'rtAbs') { const { n, b } = q; add(pw('(−' + b + ')', n) + ' ＝ ' + Math.pow(b, n) + ' → ' + rt(n, Math.pow(b, n)) + ' ＝ ' + b); add('偶数乗根は 正の 方 → −' + b + ' では ない'); }
+  if (m === 'toExp' || m === 'toSq' || m === 'toRec') {
+    const { n, k } = q, e = Q(k, n);
+    add(rt('n', pw('a', 'm')) + ' ＝ ' + pw('a', fr('m', 'n')) + '：中の 指数が 分子、左上の 数が 分母');
+    if (n === 2) add('√ は 左上の 2 を 省略 → 分母は 2');
+    if (m === 'toRec') { add('逆数は マイナス乗：' + fr(1, pw('a', 'r')) + ' ＝ ' + pw('a', '−r')); add(fr(1, aTerm([n, k])) + ' ＝ ' + fr(1, aPow(e)) + ' ＝ ' + aPow(Q(-k, n))); }
+    else add(aTerm([n, k]) + ' ＝ ' + aPow(e));
+  }
+  if (m === 'toNest') {
+    const { p, r } = q;
+    add('中から 直す：' + rt(r, 'a') + ' ＝ ' + pw('a', fr(1, r)));
+    add('外の 根号も 指数に → (' + pw('a', fr(1, r)) + ')^{' + fr(1, p) + '}：( )の セット乗 → 指数の かけざん');
+    add(fr(1, r) + ' × ' + fr(1, p) + ' ＝ ' + fr(1, p * r));
+  }
+  if (['cMul', 'cDiv', 'cPow', 'cMix'].includes(m)) {
+    if (q.st !== 2) { add('累乗根は すぐ 指数に 直す：' + rt('n', pw('a', 'm')) + ' ＝ ' + pw('a', fr('m', 'n')) + '（√ は 分母 2）'); add(exprC(q) + ' ＝ ' + convC(q)); }
+    else {
+      const es = q.t.map(ex);
+      if (m === 'cMix') { add(RULE.add + '、' + RULE.sub); add('□ ＝ ' + qs(es[0]) + ' ＋ ' + qp(es[1]) + ' − ' + qp(es[2]) + ' ＝ ' + qs(shapeVal(m, es))); }
+      else { const b = m === 'cPow' ? Q(q.pk) : es[1], r = RIGHT[m]; add(RULE[r]); add('□ ＝ ' + qs(es[0]) + OP[r] + qp(b) + ' ＝ ' + qs(opVal(es[0], b, r))); }
+    }
+  }
+  if (['bRoot', 'bMul', 'bDiv', 'bOne'].includes(m)) {
+    const B = q.B;
+    if (m === 'bOne') add(B + ' ＝ ' + pw(B, 1) + '（指数の 1 を わすれない）');
+    q.t.forEach(t => add((t[1] === 1 ? '' : Math.pow(B, t[1]) + ' ＝ ' + pw(B, t[1]) + ' → ') + bTerm(B, t) + ' ＝ ' + pw(B, qs(ex(t)))));
+    const es = q.t.map(ex);
+    if (m === 'bMul' || m === 'bDiv') { const r = RIGHT[m]; add(RULE[r]); add('□ ＝ ' + qs(es[0]) + OP[r] + qp(es[1]) + ' ＝ ' + qs(opVal(es[0], es[1], r))); }
+    if (m === 'bOne') { add(RULE.add + '、' + RULE.sub); add('□ ＝ 1 ＋ ' + qp(es[0]) + ' − ' + qp(es[1]) + ' ＝ ' + qs(qsub(qadd(Q(1), es[0]), es[1]))); }
+  }
+  return L;
+}
+
+// ---------- 問題の 形（＝ モンスター）と 章 ----------
+const TAP = [];
+const CH_ALL = [
+  { key: 'imi', title: '累乗根の 意味', forms: ['rtDef', 'rtVal', 'rtNeg'], plays: [['rtDef', 'rtVal'], ['rtNeg', 'rtDef'], ['rtVal', 'MAB']], intro: true,
+    mab: { form: 'mabAbs', name: 'ゼッタイネ', sprite: '💎', tip: '√[4]{(−3)^{4}} ＝ √[4]{81} ＝ 3（正の 方）' }, boss: { name: 'ルートオウ', sprite: '🏰' } },
+  { key: 'nao', title: '指数に 直す', forms: ['toExp', 'toSq', 'toRec'], plays: [['toExp', 'toSq'], ['toRec', 'toExp'], ['toSq', 'MAB']],
+    mab: { form: 'mabNest', name: 'イレコネ', sprite: '🪆', tip: '√{√[3]{a}} ＝ a^{{1|6}}：中から 直して 指数を かける' }, boss: { name: 'ナオシオウ', sprite: '🏯' } },
+  { key: 'kei', title: '直してから 計算', forms: ['cMul', 'cDiv', 'cPow'], plays: [['cMul', 'cDiv'], ['cPow', 'cMul'], ['cDiv', 'MAB']],
+    mab: { form: 'mabMix', name: 'マトメネ', sprite: '🧮', tip: '3つでも 同じ：直して、かける → たす、わる → ひく' }, boss: { name: 'ケイサンオウ', sprite: '🌋' } },
+  { key: 'soko', title: '底を そろえる', forms: ['bRoot', 'bMul', 'bDiv'], plays: [['bRoot', 'bMul'], ['bDiv', 'bRoot'], ['bMul', 'MAB']],
+    mab: { form: 'mabOne', name: 'ヒトツメ', sprite: '☝️', tip: '2 ＝ 2^{1}：指数の 1 を わすれない' }, boss: { name: 'ソコオウ', sprite: '🗿' } },
+];
+const CHAPTERS = CH_ALL.map((c, i) => Object.assign({}, c, { ch: i + 1, lv: i + 1, title: '第' + (i + 1) + '章 ' + c.title }))
+  .concat([{ ch: CH_ALL.length + 1, final: true, title: 'さいごの 章', boss: { name: 'ルートノカミ', sprite: '⚜️' } }]);
+const DATA_V = 1;
+function migrateProg(pr) { return pr && Object.assign({}, pr, { v: DATA_V }); }
+function migrateZk(zk) { return zk && Object.assign({}, zk, { _v: DATA_V }); }
+const NORM_CH = CHAPTERS.filter(c => !c.final);
+const FORM_LV = {};
+NORM_CH.forEach(c => c.forms.forEach(f => { FORM_LV[f] = c.lv; }));
+NORM_CH.forEach(c => { if (c.mab) FORM_LV[c.mab.form] = c.lv; });
+const MONSTERS = [
+  ['rtDef', 'ルートイミ', '🔍', '√[n]{a}：n乗して a に なる 数（n が 偶数なら 正の 方）'],
+  ['rtVal', 'セイノネ', '🌱', '√[4]{16} ＝ 2（±2 では ない）'],
+  ['rtNeg', 'キスウネ', '🌑', '√[3]{−8} ＝ −2。√[4]{−16} は 実数では ない'],
+  ['toExp', 'シスウナオシ', '🔁', '√[n]{a^{m}} ＝ a^{{m|n}}（中が 分子、左上が 分母）'],
+  ['toSq', 'カクレニ', '🫥', '√ は 2乗根：√{a^{3}} ＝ a^{{3|2}}'],
+  ['toRec', 'サカサネ', '🙃', '{1|√[3]{a^{2}}} ＝ a^{−{2|3}}（逆数は マイナス乗）'],
+  ['cMul', 'カケタシ', '🧲', '直してから、かける → 指数を たす'],
+  ['cDiv', 'ワリヒキ', '🔻', '直してから、わる（分数）→ 指数を ひく'],
+  ['cPow', 'セットジョウ', '🎁', '直してから、( )の セット乗 → 指数を かける'],
+  ['bRoot', 'ソロエネ', '🧩', '4 ＝ 2^{2} → √[3]{4} ＝ 2^{{2|3}}'],
+  ['bMul', 'ソロカケ', '🔗', '底を そろえてから、指数を たす'],
+  ['bDiv', 'ソロワリ', '✂️', '底を そろえてから、指数を ひく'],
+].map(([id, name, sprite, tip]) => ({ id, ch: FORM_LV[id], name, sprite, tip }))
+  .concat(NORM_CH.filter(c => c.mab).map(c => ({ id: c.mab.form, ch: c.ch, name: c.mab.name, sprite: c.mab.sprite, tip: c.mab.tip, mab: true })))
+  .concat(NORM_CH.map(c => ({ id: 'boss' + c.ch, ch: c.ch, name: c.boss.name, sprite: c.boss.sprite, tip: '中ボス：' + c.title.replace(/^第\d章 /, '') + 'を 問題集の ことばで', boss: true })))
+  .concat([{ id: 'final', ch: CHAPTERS.length, name: CHAPTERS[CHAPTERS.length - 1].boss.name, sprite: CHAPTERS[CHAPTERS.length - 1].boss.sprite, tip: 'さいごの ボス：' + NORM_CH.length + 'つの 章を 問題集の ことばで', boss: true }]);
+const monsterOf = id => MONSTERS.find(m => m.id === id);
+function zukanAfter(zk, e) {
+  const z = Object.assign({}, zk), cur = z[e.id] || 0;
+  if (e.type === 'kill') z[e.id] = Math.max(cur, 1);
+  if (e.type === 'master') z[e.id] = 2;
+  if (e.type === 'boss') z[e.id] = Math.max(cur, e.noMiss ? 2 : 1);
+  return z;
+}
+function zukanCount(zk) {
+  const v = m => zk[m.id] || 0, base = MONSTERS.filter(m => !m.mab), mabs = MONSTERS.filter(m => m.mab);
+  const got = MONSTERS.filter(m => v(m) >= 1).length, mas = MONSTERS.filter(m => v(m) >= 2).length;
+  return { got, mas, all: MONSTERS.length, mabGot: mabs.filter(m => v(m) >= 1).length, mabAll: mabs.length,
+    comp: base.every(m => v(m) >= 1), shin: MONSTERS.every(m => v(m) >= 1), perfect: MONSTERS.every(m => v(m) >= 2) };
+}
+
+// ---------- 問題を つくる ----------
+function pickTerms(rng, n) {   // 左上の 数が ちがう 項を n こ。2つの ときは たす・ひく・かけるの 値が ちがう もの（{1|2} − {1|3} ＝ {1|2} × {1|3} の ような ものは 使わない）
+  for (;;) { const ts = [...Array(n).keys()].map(() => pick(rng, TERMS)); if (new Set(ts.map(t => t[0])).size === n && (n !== 2 || distinct3(ex(ts[0]), ex(ts[1])))) return ts; }
+}
+function distinct3(a, b) { const v = ['add', 'sub', 'mul'].map(o => qk(opVal(a, b, o))); return new Set(v).size === 3; }
+const BASE = { 2: [2, 3, 4], 3: [2, 3] };   // 底 B と その 指数（4 ＝ 2^{2}、8 ＝ 2^{3}、16 ＝ 2^{4}、9 ＝ 3^{2}、27 ＝ 3^{3}）
+function bPick(rng, big, B) {   // [B, [n, k]]：k ＝ 1 なら B そのもの。gcd(n, k) ＝ 1
+  B = B || pick(rng, [2, 2, 3]);
+  for (;;) { const k = big ? pick(rng, BASE[B]) : pick(rng, [1].concat(BASE[B])), n = ri(rng, 2, 6); if (n !== k && gcd(n, k) === 1) return [B, [n, k]]; }
+}
+function bTwo(rng, kind) {
+  for (;;) {
+    const [B, t1] = bPick(rng, true), t2 = kind === 'one' ? [ri(rng, 2, 6), 1] : bPick(rng, false, B)[1];
+    if (t2[0] === t1[0]) continue;
+    if (kind !== 'one' && !distinct3(ex(t1), ex(t2))) continue;   // ひく と かけるが 同じ 値・わって 0 は 使わない
+    return { B, t: [t1, t2] };
+  }
+}
+const GEN = {
+  rtDef: rng => { const [n, a] = pick(rng, [[4, 16], [4, 81], [6, 64], [2, 25], [2, 49]]); return { n, a }; },
+  rtVal: rng => { const [n, a] = pick(rng, [[2, 49], [2, 36], [4, 16], [4, 81], [6, 64], [2, 64]]); return { n, a }; },
+  rtNeg: rng => { const [n, a] = pick(rng, rng() < 0.5 ? [[3, -8], [3, -27], [5, -32], [3, -64]] : [[4, -16], [2, -9], [6, -64], [4, -81]]); return { n, a }; },
+  toExp: rng => { const [n, k] = pick(rng, [[3, 2], [3, 4], [4, 3], [5, 2], [5, 3], [3, 5]]); return { n, k }; },
+  toSq: rng => ({ n: 2, k: pick(rng, [1, 3, 5]) }),
+  toRec: rng => { const [n, k] = pick(rng, [[2, 1], [3, 2], [4, 3], [3, 1], [5, 2], [2, 3]]); return { n, k }; },
+  cMul: rng => ({ t: pickTerms(rng, 2) }),
+  cDiv: rng => ({ t: pickTerms(rng, 2) }),
+  cPow: rng => { for (;;) { const t = pickTerms(rng, 1), pk = pick(rng, [2, 3, 4, 6]); if (distinct3(ex(t[0]), Q(pk))) return { t, pk }; } },
+  bRoot: rng => { const [B, t] = bPick(rng, true); return { B, t: [t] }; },
+  bMul: rng => bTwo(rng, 'mul'),
+  bDiv: rng => bTwo(rng, 'div'),
+  mabAbs: rng => { const [n, b] = pick(rng, [[2, 3], [4, 2], [2, 5], [4, 3]]); return { mode: 'rtAbs', n, b }; },
+  mabNest: rng => { const [p, r] = pick(rng, [[2, 3], [3, 2], [2, 4], [2, 2], [3, 4]]); return { mode: 'toNest', p, r }; },
+  mabMix: rng => ({ mode: 'cMix', t: pickTerms(rng, 3) }),
+  mabOne: rng => Object.assign({ mode: 'bOne' }, bTwo(rng, 'one')),
+};
+function genPrm(form, rng) { const r = GEN[form](rng); return Object.assign({ mode: form }, r, { f: form, mode: r.mode || form }); }
+
+const STEPS = ['cMul', 'cDiv', 'cPow', 'cMix'];
+function build(prm, rng, opt = {}) {
+  const q = prm, form = q.f || q.mode, lv = FORM_LV[form];
+  const p = { lv, kind: 'fwd', prm, mode: q.mode, form };
+  p.options = makeOptions(q, rng);
+  const [short, exam, expr] = texts(q);
+  [p.label, p.display] = short;
+  p.expr = expr;
+  p.long = p.display.length > 26;
+  if (opt.boss) {
+    p.label = '▼ 問題集の ことばで';
+    p.display = exam[Math.floor(rng() * exam.length)];
+    p.exam = true;
+    p.shortText = short[1].length > 30 ? monsterOf(form).name + 'の 問題' : short[1];
+  }
+  p.reason = reasonLines(q);
+  if (p.exam) p.reason.push('この 問題は 第' + lv + '章の「' + p.shortText + '」と おなじ');
+  if (STEPS.includes(q.mode)) {   // 連れ問：① 指数で 表すと？ → ② 指数は どう する？
+    const q2 = Object.assign({}, q, { st: 2 }), [s2, e2, x2] = texts(q2);
+    p.steps = [
+      { label: opt.boss ? '▼ 問題集の ことばで（①）' : p.label, display: p.display, options: p.options, reason: p.reason, expr },
+      { label: opt.boss ? '▼ 問題集の ことばで（②）' : s2[0], display: opt.boss ? e2[0] : s2[1], options: makeOptions(q2, rng), reason: reasonLines(q2), expr: x2 },
+    ];
+    useStep(p, 0);
+  }
+  return p;
+}
+function useStep(p, i) { const st = p.steps[i]; p.stepIdx = i; p.label = st.label; p.display = st.display; p.long = st.display.length > 26; p.options = st.options; p.reason = st.reason; p.expr = st.expr; return p; }
+function judge(p, ans) { return p.options[ans.opt].correct; }
+function classify(p, ans) { return { types: p.options[ans.opt].types.slice() }; }
+const TYPE_TEXT = {
+  pm: '累乗根は 1つの 数（偶数乗根は 正の 方 だけ）', div: 'n で わるのでは ない（n乗して a に なる 数）', pow: 'n乗 するのでは ない（n乗して a に なる 数）',
+  neg: '偶数乗根は 正の 方', none: 'この 累乗根は 実数で ある（中が 正、または 奇数乗根）', drop: 'マイナスを 落とした',
+  evenneg: '偶数乗は 0 いじょう → 負の 数の 偶数乗根は 実数では ない', abs: '中を 先に 計算：(−3)^{4} ＝ 81 → 81 の 4乗根は 正の 3',
+  flip: '分母と 分子が 逆（中の 指数が 分子、左上の 数が 分母）', inner: '根号の 中の 指数を わすれた（分子に なる）', hide2: '√ の 左上の 2 を わすれた（√ は 2乗根 → 分母は 2）',
+  mul: '指数どうしを かけるのでは ない（分数に なる）', inv: '逆数は マイナス乗（− を わすれた）', add: '重なった 根号は 指数の かけざん（たさない）', outer: '外がわの 根号を わすれた',
+  inside: '累乗根の まま まとめない（すぐ 指数に 直す）', updown: 'わる 方が 分母（上下が 逆）', coef: '( )の セット乗は 指数に かける（前に つく 係数では ない）',
+  addw: 'かけ算 → 指数は たす', subw: 'わり算（分数）→ 指数は ひく', mulw: '( )の セット乗 → 指数は かける',
+  nobase: '底を そろえて いない（4 ＝ 2^{2} の ように 直してから）', one: '前に かけて いる 底は 指数 1（2 ＝ 2^{1}）',
+  scatter: 'えらびかたが ばらばら',
+};
+const MASTER_TEXT = { pm: '累乗根は 1つ', div: '累乗根の 意味', pow: '累乗根の 意味', neg: '正の 方', none: '実数の 累乗根', drop: 'マイナス', evenneg: '偶数乗根の 中が 負', abs: '中を 先に',
+  flip: '分母と 分子', inner: '中の 指数', hide2: '√ の 2', mul: '分数の 指数', inv: 'マイナス乗', add: '重なった 根号', outer: '外の 根号',
+  inside: 'すぐ 指数に', updown: '分母と 分子', coef: 'セット乗', addw: 'かけ算は たす', subw: 'わり算は ひく', mulw: 'セット乗は かける', nobase: '底を そろえる', one: '指数の 1' };
+function describe(p, cls) { return cls.types.map(t => TYPE_TEXT[t]).join('、'); }
+function masterText(t) { return MASTER_TEXT[t]; }
+function likeOK(q, w, types) {
+  if (q.mode !== w.mode) return false;
+  if (q.mode === 'rtNeg' && q.n % 2 !== w.n % 2) return false;   // 奇数乗根・偶数乗根を 同じに
+  for (const t of types) {
+    if (t === 'hide2' && q.t && !q.t.some(x => x[0] === 2)) return false;
+    if (t === 'inner' && q.t && !q.t.some(x => x[1] >= 2)) return false;
+    if (t === 'div' && q.mode === 'rtVal' && !(q.a % q.n === 0 && q.a / q.n !== rootInt(q.n, q.a))) return false;
+    if (t === 'none' && q.mode === 'rtVal' && q.a % q.n === 0 && q.a / q.n !== rootInt(q.n, q.a)) return false;
+  }
+  return true;
+}
+const MID_HP = 2, FINAL_HP = NORM_CH.length;
+const zakoHP = L => 1 + Math.floor(L / 2);
+const midHP = L => 7 + Math.floor(L / 2);
+const finalHP = L => (FINAL_HP === 5 ? 18 + 4 * L : 14 + 3 * L);   // さいごの 章は 章の 数だけ つづけて せいかい（会心なし）で たおせる HP
+const CRIT = 1 / 8;
+const comboBonus = n => Math.min(Math.max(n - 1, 0), 3);
+function damage(p, L, ev, rng, combo = 0) {
+  const d = (p.exam ? 3 : 2) + (L - 1) + (p.target && p.target.lv ? 1 : 0) + comboBonus(combo);
+  const crit = (ev && ev.mastered && ev.mastered.length > 0) || rng() < CRIT;
+  return { d: crit ? d * 2 : d, crit };
+}
+const INTRO = [];
+// 1回の あそび：ザコ2体（★の 数で 会う 形が かわる）→ 中ボス。★3 の あとは 3回分の どれか。さいごの 章は 章の 数だけ 1問ずつ
+const PLAYS = 3;
+function makeSlots(ch, rng, opt = {}) {
+  const C = CHAPTERS[ch - 1], mid = [...Array(MID_HP).keys()].map(() => ({ lv: C.lv, boss: true }));
+  if (C.final) return shuffle(rng, NORM_CH.map(c => c.lv)).map(lv => ({ lv, boss: true }));
+  const play = opt.play === undefined ? ri(rng, 0, PLAYS - 1) : Math.min(opt.play, PLAYS - 1);
+  return C.plays[play].map(f => (f === 'MAB' ? { lv: C.lv, form: C.mab.form, mab: true } : { lv: C.lv, form: f })).concat(mid);
+}
+function newContext() { return { recent: [], weak: {}, log: [] }; }
+function makeProblem(slot, ctx, rng) {
+  const w = ctx.weak[slot.lv];
+  const forms = slot.form ? [slot.form] : CHAPTERS[slot.lv - 1].forms;
+  const fresh = prm => !ctx.recent.includes(JSON.stringify(prm));
+  const gen = () => genPrm(pick(rng, forms), rng);
+  let prm = null, target = false;
+  if (w) for (let i = 0; i < 400 && !prm; i++) { const c = gen(); if (likeOK(c, w.like, w.types) && fresh(c)) { prm = c; target = true; } }
+  if (w) for (let i = 0; i < 400 && !prm; i++) { const c = gen(); if (likeOK(c, w.like, w.types)) { prm = c; target = true; } }   // 形が 少ない ときは 同じ 問題でも よい（もう一度 たしかめる）
+  for (let i = 0; i < 400 && !prm; i++) { const c = gen(); if (fresh(c)) prm = c; }
+  if (!prm) prm = gen();
+  const p = build(prm, rng, { boss: !!slot.boss });
+  if (slot.mab) { p.mab = true; p.label = '▼ まぼろしの 問題'; if (p.steps) p.steps[0].label = p.label; }
+  p.target = { lv: target };
+  p.key = JSON.stringify(prm);
+  ctx.recent.push(p.key);
+  if (ctx.recent.length > 4) ctx.recent.shift();
+  return p;
+}
+function record(ctx, p, ok, cls, ms, hinted) {
+  const ev = { lv: p.lv, kind: p.kind, mode: p.mode, form: p.form, ok, types: cls ? cls.types : [], target: p.target, ms, mastered: [], hinted: !!hinted };
+  const w = ctx.weak[p.lv];
+  if (ok) {
+    if (p.target.lv && w && !hinted && ++w.got >= 2) { ev.mastered.push(...w.types); delete ctx.weak[p.lv]; }
+  } else {
+    const main = cls.types.filter(t => t !== 'scatter');
+    if (main.length) ctx.weak[p.lv] = { types: main, like: p.prm, got: 0 };
+    else if (w && p.target.lv) w.got = 0;
+  }
+  ctx.log.push(ev);
+  return ev;
+}
+// 画面と おなじ しくみ（ヒントは この ゲームには ない）
+const hasHint = () => false, hintParts = () => null, hintLines = () => [];
+G.QuestCore = {
+  FIG, TERMS, rt, Q, qs, ex, TAP, INTRO, DATA_V, migrateProg, migrateZk, hasHint, hintParts, hintLines, useStep, STEPS,
+  CHAPTERS, NORM_CH, FORM_LV, MONSTERS, monsterOf, zukanAfter, zukanCount, GEN, genPrm, makeOptions, build, judge, classify,
+  describe, masterText, likeOK, TYPE_TEXT, MASTER_TEXT, PLAYS, MID_HP, FINAL_HP, zakoHP, midHP, finalHP, CRIT, comboBonus, damage, makeSlots,
+  newContext, makeProblem, record, mulberry32,
+};
+})(typeof window !== 'undefined' ? window : this);
+</script>
+<!-- ========== 画面 ========== -->
+<script>
+(function () {
+'use strict';
+const C = window.QuestCore;
+const MAX_LIVES = 3;
+const rng = Math.random;
+const $ = id => document.getElementById(id);
+const canvas = $('plane');
+const wrap = $('planeWrap');
+const gameEl = $('game');
+const monsterEl = $('monster');
+const optBtns = [...document.querySelectorAll('#controls .opt')];
+const ZK_KEY = 'ruijoukon-zukan', PROG_KEY = 'ruijoukon-progress', TUT_KEY = 'ruijoukon-tut';
+
+const state = {
+  ch: 1, slots: [], slotIdx: 0, hp: 1, maxHp: 1, lives: MAX_LIVES, combo: 0,
+  problem: null,
+  sel: { regions: [] },   // この ゲームは 選択肢だけ（図を タップ しない）
+  opt: -1,              // 4択で えらんだ もの
+  phase: 'idle',        // 'play' | 'busy' | 'next'
+  reveal: false, view: 'ans', tut: null, blinkOn: false,
+  ctx: C.newContext(), onNext: null, bossMiss: false,
+  hintLv: 0, hintUsed: false, stepFail: null,   // ヒントの 段階・この 問題で ヒントを 見たか・連れ問の ① の まちがい
+};
+const chap = () => C.CHAPTERS[state.ch - 1];
+const zakoOf = c => c.zako || c.forms;
+const nNormal = () => (chap().final ? 0 : state.nZako);   // まぼろしが 入ると 1体 ふえる
+const atBoss = () => state.slotIdx >= nNormal();
+const bossId = () => (chap().final ? 'final' : 'boss' + chap().ch);
+// 式の 文字を TeX 風の HTML に する（{分子|分母} は 横線の 分数）
+function esc(t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+const FR = (a, b) => '<span class="fr"><span class="nu">' + a + '</span><span class="de">' + b + '</span></span>';
+// 式の 文字を HTML に：a^{3}（指数・入れ子も）、{分子|分母}（横線の 分数）、√[3]{8}・√{a}（根号）、‾{A}（上に 線）。内がわ（中に { } が ない もの）から 順に 組む
+function mathHTML(text) {
+  let h = esc(text);
+  for (let k = 0; k < 8; k++) {
+    const n = h.replace(/\^\{([^{}|]*)\}/g, '<sup class="ex">$1</sup>').replace(/\{([^{}|]*)\|([^{}|]*)\}/g, (m, a, b) => FR(a, b))
+      .replace(/√\[([^\]{}|]*)\]\{([^{}|]*)\}/g, '<span class="rt"><sup class="ri">$1</sup>√<span class="rad">$2</span></span>').replace(/√\{([^{}|]*)\}/g, '<span class="rt">√<span class="rad">$1</span></span>');
+    if (n === h) break;
+    h = n;
+  }
+  return h.replace(/‾\{([^{}|]*)\}/g, '<span class="ov">$1</span>');
+}
+const p = () => state.problem;
+const tapMode = q => !!q && !q.options;
+
+// ---------- 図鑑の きろく ----------
+let memZk = { _v: C.DATA_V };
+function loadZk() {
+  try {
+    const z = JSON.parse(localStorage.getItem(ZK_KEY) || 'null');
+    if (!z) return memZk;
+    if (!(z._v >= C.DATA_V)) { const m = C.migrateZk(z); saveZk(m); return m; }
+    return z;
+  } catch (e) { return memZk; }
+}
+function saveZk(z) { z = Object.assign({}, z, { _v: C.DATA_V }); memZk = z; try { localStorage.setItem(ZK_KEY, JSON.stringify(z)); } catch (e) { /* 保存できなくても その回は 遊べる */ } }
+function zkEvent(e, lines) {   // 図鑑に 印を つけて、あたらしく のった ものを メッセージに
+  const before = loadZk(), after = C.zukanAfter(before, e), m = C.monsterOf(e.id);
+  saveZk(after);
+  if (!before[e.id] && after[e.id]) lines.push('📖 ずかんに「' + m.name + '」が のった！' + (after[e.id] >= 2 ? '（◎）' : ''));
+  else if ((before[e.id] || 0) < 2 && after[e.id] >= 2) lines.push('📖「' + m.name + '」が ◎ に なった！');
+}
+function compText(zk) { const k = C.zukanCount(zk); return k.perfect ? '👑 かんぜん コンプ' : k.shin ? '👑 しんの コンプ' : k.comp ? '👑 ずかん コンプ！' : ''; }
+function renderTitleComp() { const t = compText(loadZk()); $('compTitle').textContent = t; $('compTitle').classList.toggle('hidden', !t); }
+
+// ---------- 表示 ----------
+function renderStatus() {
+  const c = chap(), n = nNormal(), L = heroLV();
+  $('levelDisplay').textContent = 'LV ' + L;
+  $('attackDisplay').textContent = String(attack(L));
+  $('livesDisplay').innerHTML = '♥'.repeat(Math.max(0, state.lives)) + '<span class="empty">' + '♡'.repeat(MAX_LIVES - Math.max(0, state.lives)) + '</span>';
+  $('enemyHpDisplay').textContent = 'HP ' + Math.max(0, state.hp) + '/' + state.maxHp;
+  const done = Math.min(state.slotIdx, n);
+  $('progressDisplay').textContent = (c.final ? (atBoss() ? '' : 'さいごの 章　') : '第' + c.ch + '章　') +
+    (atBoss() ? c.boss.name + ' と たたかい中！' : (n > 5 ? '' : '■'.repeat(done) + '□'.repeat(n - done) + ' ') + 'ボスまで あと ' + (n - done) + 'たい');   // ザコが 多い 章は 数で
+  if (state.tut) {
+    $('levelDisplay').textContent = 'れんしゅう';
+    $('progressDisplay').textContent = 'れんしゅう ' + (state.tut.i + 1) + '/' + TUT.length;
+  }
+}
+// まぼろしの モンスター：特別な 演出
+function appear() {
+  if (p() && p().mab && !state.tut) { mabWarn(); return 'まぼろしの ' + enemyNow().name + 'が あらわれた！'; }
+  return enemyNow().name + 'が　あらわれた！';
+}
+function warnTop(el) {   // 帯は メッセージの ところに 出す（図に 重ねない）
+  const g = gameEl.getBoundingClientRect(), m = $('message').getBoundingClientRect();
+  el.style.top = Math.max(0, m.top - g.top) + 'px';
+}
+function mabWarn() {
+  const el = document.createElement('div'); el.className = 'boss-warn mab'; el.textContent = '✨ まぼろし ✨';
+  warnTop(el); gameEl.appendChild(el); setTimeout(() => el.remove(), 2000); flashScreen(); setTimeout(flashScreen, 200);
+}
+function enemyNow() { const c = chap(); return atBoss() ? c.boss : C.monsterOf(p() ? p().form : c.forms[0]); }
+function renderEnemy() {
+  const c = chap(), boss = atBoss() && !state.tut, e = state.tut ? { name: 'まと', sprite: '🎯' } : enemyNow();
+  monsterEl.textContent = e.sprite;
+  monsterEl.className = boss ? 'boss' : p() && p().mab && !state.tut ? 'mab' : '';
+  $('monsterName').textContent = e.name;
+  gameEl.classList.toggle('boss-mid', boss && !c.final);
+  gameEl.classList.toggle('boss-final', boss && !!c.final);
+}
+function bossWarn(final) {
+  const el = document.createElement('div');
+  el.className = 'boss-warn' + (final ? ' final' : '');
+  el.textContent = final ? '⚠ BOSS ⚠' : '⚠ 中ボス ⚠';
+  warnTop(el); gameEl.appendChild(el); setTimeout(() => el.remove(), 2000);
+}
+const PUNC = t => t.replace(/。/g, '．').replace(/、/g, '，');   // 問題文は 教科書と おなじ「，」「．」
+// 問題集の ことばは「条件」と「どうするか」の あいだで 改行：「に ついて、」「と する。」の あと、なければ 最後の 文の まえ
+function examLines(t) {
+  let i = -1;
+  for (const m of t.matchAll(/(?:に ついて|と する|て とる)[、。]/g)) i = m.index + m[0].length;
+  if (i < 0) { const j = t.slice(0, -1).lastIndexOf('。'); if (j >= 0) i = j + 1; }
+  return i > 0 && i < t.length ? [t.slice(0, i), t.slice(i)] : [t];
+}
+const NBOP = t => t.replace(/ ([＝＋−]) /g, ' $1 ');
+function renderProblem() {
+  const q = p(), el = $('problemExpr');
+  $('problemLabel').textContent = q.label;
+  const wrapIt = q.exam || q.long;
+  if (wrapIt) el.innerHTML = (q.exam ? examLines(q.display) : q.display.split(/(?<=。)/).filter(x => x)).map(x => mathHTML(NBOP(PUNC(x)))).join('<br>');
+  else el.innerHTML = q.display.split(/(?<=。)/).filter(x => x).map(x => '<span class="nw">' + mathHTML(NBOP(PUNC(x))) + '</span>').join('<br>');
+  el.classList.toggle('exam', !!wrapIt);
+  el.classList.toggle('long', !wrapIt && q.display.length > 18);
+  fitProblem();
+}
+function fitProblem() {
+  const el = $('problemExpr');
+  el.querySelectorAll('.nw').forEach(nw => {
+    nw.style.fontSize = ''; nw.style.whiteSpace = '';
+    let size = parseFloat(getComputedStyle(nw).fontSize);
+    while (nw.scrollWidth > el.clientWidth && size > 10) { size -= 1; nw.style.fontSize = size + 'px'; }
+    if (nw.scrollWidth > el.clientWidth) nw.style.whiteSpace = 'normal';   // それでも 入らなければ 折り返す
+  });
+}
+function show(el, on) { el.classList.toggle('hidden', !on); }
+function renderMapBtn() { $('mapBtn').classList.toggle('hidden', !!state.tut || !(state.phase === 'play' || state.phase === 'next')); }
+function renderControls() {
+  renderMapBtn();
+  const q = p(), next = state.phase === 'next', hasOpt = !!q && !!q.options, n = hasOpt ? q.options.length : 0;
+  $('controls').classList.toggle('three', n === 3 && q.options.every(o => o.text.length <= 4));   // 3列は ＋・−・± の ような 短い ものだけ
+  optBtns.forEach((b, i) => {
+    show(b, hasOpt && i < n);
+    if (!hasOpt || i >= n) return;
+    const t = q.options[i].text;
+    b.innerHTML = t.split('、').map(x => '<span class="nw">' + mathHTML(x) + '</span>').join('、');
+    b.dataset.text = t;
+    b.classList.toggle('on', state.opt === i && !state.reveal);
+    b.classList.toggle('right', state.reveal && q.options[i].correct);
+    b.classList.toggle('wrong', state.reveal && state.opt === i && !q.options[i].correct);
+  });
+  show($('mineBtn'), next && tapMode(q) && !state.tut);
+  show($('ansBtn'), next && tapMode(q) && !state.tut);
+  $('mineBtn').classList.toggle('on', state.view === 'mine');
+  $('ansBtn').classList.toggle('on', state.view === 'ans');
+  show($('decideBtn'), !next);
+  show($('nextBtn'), next);
+  $('decideBtn').disabled = !ready();
+  fitOpts();
+}
+// 選択肢の 文字が ボタンに 入りきらない ときは、文字を 小さく（13px まで）→ それでも 入らなければ 1列に して もう一度
+function fitOpts() {
+  const c = $('controls'), vis = optBtns.filter(b => !b.classList.contains('hidden'));
+  c.classList.remove('one'); optBtns.forEach(b => { b.style.fontSize = ''; });
+  if (!vis.length) return;
+  const over = () => vis.some(b => b.scrollWidth > b.clientWidth + 1);
+  const shrink = min => { let f = parseFloat(getComputedStyle(vis[0]).fontSize); while (over() && f > min) { f -= 1; vis.forEach(b => { b.style.fontSize = f + 'px'; }); } };
+  shrink(13);
+  if (over()) { vis.forEach(b => { b.style.fontSize = ''; }); c.classList.add('one'); shrink(8); }
+  if (over()) vis.forEach(b => b.querySelectorAll('.nw').forEach(nw => { nw.style.whiteSpace = 'normal'; }));
+}
+window.__fitOpts = fitOpts;
+function ready() {
+  const q = p();
+  if (!q || state.phase !== 'play') return false;
+  if (q.options) return state.opt >= 0;
+  return state.sel.regions.length > 0;
+}
+function setMessage(text) { $('msgText').innerHTML = mathHTML(text); $('message').scrollTop = 0; }
+
+
+// ---------- 図：この ゲームは 図を 使わない（式を 大きく まんなかに）----------
+let DPR = 1;
+function resizePlane() {
+  fitOpts();
+  const w = Math.floor(Math.min(wrap.clientWidth - 12, (wrap.clientHeight - 8) / C.FIG.ASPECT));
+  const W = Math.max(100, w), H = Math.round(W * C.FIG.ASPECT);
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+  draw();
+  placeBtnHint();
+  if (p()) fitProblem();
+}
+function draw() { gameEl.classList.add('nofig'); }
+function placeTapHint() {}
+
+// ---------- 演出 ----------
+function flashScreen() { const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+function monsterAnim(cls) { monsterEl.classList.remove('hit', 'miss-dmg'); void monsterEl.offsetWidth; monsterEl.classList.add(cls); }
+function showDamage(text, color) {
+  const el = document.createElement('div');
+  el.className = 'dmg-float'; el.textContent = text; el.style.color = color;
+  el.style.textShadow = '2px 2px 0 #000, 0 0 8px ' + color;
+  const r = monsterEl.getBoundingClientRect(), g = gameEl.getBoundingClientRect();
+  el.style.left = (r.left - g.left + r.width / 2 - 16) + 'px'; el.style.top = (r.top - g.top) + 'px';
+  gameEl.appendChild(el); setTimeout(() => el.remove(), 1000);
+}
+function showLevelUp() { const el = document.createElement('div'); el.className = 'level-up'; el.textContent = 'LEVEL UP!'; gameEl.appendChild(el); setTimeout(() => el.remove(), 1800); }
+
+// ---------- 進行 ----------
+function hint() { return 'えらんで けってい'; }
+function resetInput() { state.sel = { regions: [] }; state.opt = -1; state.reveal = false; state.view = 'ans'; }
+function newProblem() {
+  if (state.slotIdx >= state.slots.length) {   // ボスは HP が のこる かぎり 出す
+    const c = chap(), lv = c.final ? 1 + Math.floor(rng() * C.FINAL_HP) : c.lv;
+    state.slots.push({ lv, boss: true });
+  }
+  state.problem = C.makeProblem(state.slots[state.slotIdx], state.ctx, rng);
+  resetInput(); state.hintLv = 0; state.hintUsed = false; state.stepFail = null; renderHint();
+  state.phase = 'play';
+  state.shownAt = performance.now();
+  renderEnemy(); renderProblem(); renderControls(); renderStatus(); draw();
+}
+function answerNow() { return p().options ? { opt: state.opt } : { regions: state.sel.regions.slice() }; }
+function submit() {
+  const q = p();
+  if (state.phase !== 'play' || !q) return;
+  if (state.tut) { tutDecide(); return; }
+  if (!ready()) { setMessage(hint()); return; }
+  const ans = answerNow(), ok = C.judge(q, ans), cls = ok ? null : C.classify(q, ans);
+  if (q.steps && q.stepIdx === 0) { stepOne(ok, cls); return; }   // 連れ問の ①
+  if (q.steps && state.stepFail) { afterStepFail(ok); return; }   // ① を まちがえた あとの ②
+  const ev = C.record(state.ctx, q, ok, cls, Math.round(performance.now() - state.shownAt), state.hintUsed);
+  if (ok) onCorrect(ev); else onWrong(cls);
+}
+// 連れ問：① が せいかいなら そのまま ② へ。① を まちがえたら ライフを 1つ へらし、正しい ぬり方を 見せて ② へ
+function goStep2(msg) {
+  C.useStep(p(), 1); resetInput(); state.hintLv = 0; renderHint();
+  state.phase = 'play'; renderProblem(); renderControls(); draw(); setMessage(msg + '\n' + hint());
+}
+function stepOne(ok, cls) {
+  const q = p();
+  state.reveal = true;
+  if (ok) {
+    state.phase = 'busy'; draw(); renderControls(); flashScreen();
+    setMessage('① せいかい！　' + (q.ex ? q.ex + ' は きいろの ところ' : 'つぎは ②'));
+    setTimeout(() => goStep2('つぎは ②'), 900);
+    return;
+  }
+  state.stepFail = cls; state.combo = 0;
+  if (atBoss()) state.bossMiss = true;
+  if (q.mab) state.mabMiss = true;
+  state.lives -= 1; state.phase = 'next'; state.view = 'ans';
+  draw(); renderControls(); renderStatus();
+  monsterAnim('miss-dmg'); showDamage('MISS', '#ff4444');
+  setMessage(['ざんねん！　' + C.describe(q, cls), 'ただしい こたえは みどり', ...q.reason].join('\n'));
+  state.onNext = state.lives <= 0 ? () => { state.phase = 'idle'; $('gameOverScreen').classList.remove('hidden'); } : () => goStep2('② は ただしい ① で 考えよう');
+}
+function afterStepFail(ok) {   // ① を まちがえた 問題は ② が できても たおせない（もう一度）
+  const q = p(), cls = ok ? state.stepFail : C.classify(q, answerNow());
+  C.record(state.ctx, q, false, state.stepFail, Math.round(performance.now() - state.shownAt), state.hintUsed);
+  state.phase = 'next'; state.reveal = true; state.view = 'ans';
+  draw(); renderControls(); renderStatus();
+  setMessage((ok ? ['② は せいかい！', 'でも ① を まちがえたので、もう一度'] : ['ざんねん！　' + C.describe(q, cls), ...q.reason]).join('\n'));
+  state.onNext = () => { newProblem(); setMessage('もういちど！\n' + hint()); };
+}
+// ---------- ヒント ----------
+function renderHint() {
+  const q = p(), on = !!q && C.hasHint(q) && !state.tut;
+  $('hintBtn').classList.toggle('hidden', !on);
+  $('hintBtn').classList.toggle('used', state.hintLv >= (C.hintParts(q || {}) ? 2 : 1));
+}
+function showHint() {
+  const q = p();
+  if (!q || state.phase !== 'play' || !C.hasHint(q)) return;
+  const max = C.hintParts(q) ? 2 : 1;
+  if (state.hintLv >= max) return;
+  state.hintLv += 1;
+  if (!state.hintUsed) { state.hintUsed = true; if (atBoss()) state.bossMiss = true; if (q.mab) state.mabMiss = true; }   // ヒントを 見た 問題は れんぞく・◎ に ならない
+  const L = state.hintLv === 1 ? C.hintLines(q) : ['図の 色を 見よう'].concat(hintPartsText(q));
+  setMessage('💡 ヒント' + (max > 1 ? '（' + state.hintLv + '/' + max + '）' : '') + '\n' + L.join('\n') + (state.hintLv === max ? '' : '\n（もう一度 押すと 図で 見せる）') + '\n※ ヒントを 見た 問題は れんぞく・◎ に ならない');
+  renderHint(); draw();
+}
+function hintPartsText(q) {
+  const h = C.hintParts(q), c = ['水色', 'オレンジ'];
+  if (h.op === 'bar') return ['水色 ＝ ' + h.parts[0][0] + '。上の 線は その 外がわ'];
+  if (h.op === 'id') return ['水色 ＝ ' + h.parts[0][0]];
+  return h.parts.map((x, i) => c[i] + ' ＝ ' + x[0]).concat([h.op === '∪' ? '∪：少なくとも 一方の 色が ある ところ' : '∩：両方の 色が 重なる ところ']);
+}
+function onCorrect(ev) {
+  const c = chap(), boss = atBoss(), e = enemyNow(), q = p();
+  if (!state.hintUsed) state.combo = (state.combo || 0) + 1;   // ヒントを 見た 問題は れんぞくに 数えない
+  const hit = C.damage(q, heroLV(), ev, rng, state.hintUsed ? 0 : state.combo);
+  state.phase = 'busy'; state.reveal = true; state.hp -= hit.d;
+  let hold = false, stay = false;
+  // さいごの 章は 1周目だけ、すべての 章を 出しきるまで たおれない
+  if (c.final && !loadProg().done && state.hp <= 0 && state.slotIdx < C.FINAL_HP - 1) { state.hp = 1; hold = true; }
+  // ザコは 苦手の 問題を こくふく するまで（2回 つづけて せいかい）たおれない
+  if (!boss && q.target && q.target.lv && state.ctx.weak[q.lv]) { state.hp = Math.max(state.hp, 1); stay = true; }
+  draw(); renderControls(); renderStatus();
+  flashScreen(); if (hit.crit) setTimeout(flashScreen, 180);
+  monsterAnim('hit'); showDamage('-' + hit.d, hit.crit ? '#ff9900' : '#ffff00');
+  const lines = ['せいかい！　' + e.name + 'に　' + hit.d + ' の ダメージ！'];
+  if (hit.crit) lines.unshift('かいしんの いちげき！');
+  if (q.target && q.target.lv) lines.push('（にがての もんだいに せいかい ＋1）');
+  if (!state.hintUsed && C.comboBonus(state.combo) > 0) lines.push('れんぞく せいかい ×' + state.combo + '（＋' + C.comboBonus(state.combo) + '）');
+  ev.mastered.forEach(t => lines.push('◎ ' + C.masterText(t) + ' こくふく！'));
+  if (ev.mastered.length) zkEvent({ type: 'master', id: q.form }, lines);
+  if (hold) lines.push(e.name + '「まだ たおれぬ！」');
+  if (stay) lines.push(e.name + '「にがてを こくふく するまで たおれぬ！」');
+  if (state.hp <= 0) zkEvent(boss ? { type: 'boss', id: bossId(), noMiss: !state.bossMiss } : q.mab ? { type: 'boss', id: q.form, noMiss: !state.mabMiss } : { type: 'kill', id: q.form }, lines);   // まぼろしの ◎ は ノーミス
+  setMessage(lines.join('\n'));
+  if (hit.crit) { const el = document.createElement('div'); el.className = 'level-up crit'; el.textContent = 'かいしんの いちげき！'; gameEl.appendChild(el); setTimeout(() => el.remove(), 1500); }
+  const wait = (hit.crit ? 1500 : 1000) + (lines.some(l => l.startsWith('📖')) ? 400 : 0);
+  setTimeout(() => {
+    if (!stay) state.slotIdx += 1;
+    if (state.hp > 0) { newProblem(); setMessage((stay ? 'もう 1もん！' : 'のこり HP ' + state.hp + '！') + '\n' + hint()); return; }
+    monsterEl.classList.add('dying');
+    setMessage(e.name + 'を　たおした！');
+    renderStatus();
+    setTimeout(afterDefeat, 1100);
+  }, wait);
+}
+function afterDefeat() {
+  const c = chap(), L = heroLV();
+  monsterEl.classList.remove('dying');
+  if (c.final || state.slotIdx > nNormal()) { chapterClear(); return; }   // ボスを たおした
+  state.lives = MAX_LIVES;
+  if (state.slotIdx === nNormal()) {   // 中ボス
+    state.hp = state.maxHp = C.midHP(L); state.bossMiss = false;
+    newProblem(); bossWarn(false);
+    setMessage('中ボス ' + c.boss.name + 'が あらわれた！\nここからは 問題集の ことばで 出るぞ！\n' + hint());
+    return;
+  }
+  state.hp = state.maxHp = C.zakoHP(L);
+  newProblem();
+  setMessage(appear() + '\n' + hint());
+}
+// ---------- ★の きろく（周回なし：1つの 章を 続けて あそんで ★3。ぜんぶの 章が ★3 で さいごの 章が ひらく）----------
+const MAX_STAR = 3;
+const NORM = C.NORM_CH.map(c => c.ch);
+const FIN = C.CHAPTERS.find(c => c.final).ch;
+let memProg = null;
+function newProg() { return { stars: {}, gained: 0, done: false, v: C.DATA_V }; }
+function loadProg() {
+  try {
+    const raw = localStorage.getItem(PROG_KEY);
+    if (raw) { const pr = JSON.parse(raw); if (!(pr.v >= C.DATA_V)) { const m = C.migrateProg(pr); saveProg(m); return m; } return pr; }
+  } catch (e) { /* 読めなければ メモリの きろく */ }
+  return memProg || newProg();
+}
+function saveProg(pr) { pr.v = C.DATA_V; memProg = pr; try { localStorage.setItem(PROG_KEY, JSON.stringify(pr)); } catch (e) { /* 保存できなくても その回は 遊べる */ } }
+const heroLV = () => 1 + loadProg().gained;
+const attack = L => L + 1;
+const starsOf = (pr, ch) => Math.min(MAX_STAR, pr.stars[ch] || 0);
+const allStar = pr => NORM.every(k => starsOf(pr, k) >= MAX_STAR);
+const starTotal = pr => NORM.reduce((s, k) => s + starsOf(pr, k), 0);
+function starStr(n) { n = Math.min(n, MAX_STAR); return '<span class="stars">' + '★'.repeat(n) + '<span class="dim">' + '☆'.repeat(MAX_STAR - n) + '</span></span>'; }
+function showMap() {
+  const pr = loadProg(), L = heroLV(), zk = loadZk(), k = C.zukanCount(zk);
+  const items = C.CHAPTERS.map(c => {
+    if (c.final) {
+      if (!allStar(pr)) return '<button class="chap locked" disabled>🔒 さいごの 章<span class="unit">ぜんぶの 章を ★3 に すると ひらく（★ ' + starTotal(pr) + '/' + NORM.length * MAX_STAR + '）</span></button>';
+      return '<button class="chap" data-ch="' + c.ch + '">' + (pr.done ? '👑 ' : '▶ ') + c.title + '<span class="unit">ボス ' + c.boss.name + '（問題集の ことばで ' + C.FINAL_HP + 'つの 章）</span></button>';
+    }
+    const n = starsOf(pr, c.ch);
+    return '<button class="chap" data-ch="' + c.ch + '">' + (n >= MAX_STAR ? '✅ ' : '▶ ') + c.title + starStr(n) + '<span class="unit">ザコ 2体 → 中ボス ' + c.boss.name + '</span></button>';
+  }).join('') + (pr.done ? '<button class="chap reset" id="resetBtn2">🔄 さいしょから あそぶ</button>' : '');
+  $('mapLV').textContent = 'ゆうしゃ LV ' + L + '　こうげき力 ' + attack(L) + '　★ ' + starTotal(pr) + '/' + NORM.length * MAX_STAR;
+  $('zukanBtn').textContent = '📖 モンスターずかん ' + k.got + '/' + k.all;
+  $('mapComp').textContent = compText(zk); $('mapComp').classList.toggle('hidden', !compText(zk));
+  $('chapterList').innerHTML = items;
+  $('chapterList').querySelectorAll('.chap[data-ch]').forEach(b => b.addEventListener('click', () => { $('mapScreen').classList.add('hidden'); state.ctx = C.newContext(); startChapter(+b.dataset.ch); }));
+  if (pr.done) $('resetBtn2').addEventListener('click', () => $('resetScreen').classList.remove('hidden'));
+  $('mapScreen').classList.remove('hidden');
+  state.phase = 'idle';
+}
+function startChapter(ch) {
+  state.ch = ch;
+  const c = chap(), pr0 = loadProg(), n = starsOf(pr0, ch);
+  state.slots = C.makeSlots(ch, rng, { play: n < MAX_STAR ? n : undefined });   // ★0 → 1回め、★1 → 2回め、★2 → 3回め（まぼろし）。★3 の あとは どれか
+  state.nZako = state.slots.filter(s => !s.boss).length; state.mabMiss = false;
+  state.slotIdx = 0; state.combo = 0; state.bossMiss = false;
+  state.hp = state.maxHp = c.final ? C.finalHP(heroLV()) : C.zakoHP(heroLV());
+  state.lives = MAX_LIVES;
+  monsterEl.classList.remove('dying');
+  newProblem();
+  if (c.final) bossWarn(true);
+  if (c.intro && n === 0 && starTotal(pr0) === 0) { $('defClose').textContent = '▶ たたかう'; $('defScreen').classList.remove('hidden'); $('defScreen').scrollTop = 0; }   // はじめて の とき だけ 公式の 画面
+  setMessage((c.final ? c.boss.name + 'が あらわれた！\nここからは 問題集の ことばで 出るぞ！' : c.title + '\n' + appear()) + '\n' + hint());
+}
+function chapterClear() {
+  gameEl.classList.remove('boss-mid', 'boss-final');
+  const c = chap(), pr = loadProg(), before = heroLV();
+  state.phase = 'idle';
+  const lines = [];
+  if (!c.final) {
+    const was = allStar(pr), n0 = starsOf(pr, c.ch);
+    if (n0 < MAX_STAR) {
+      pr.stars[c.ch] = n0 + 1; pr.gained += 1;
+      lines.push('★ ' + (n0 + 1) + '/' + MAX_STAR + ' ゲット！');
+      lines.push('LEVEL UP！　LV ' + before + ' → ' + (before + 1) + '　こうげき力 ' + attack(before) + ' → ' + attack(before + 1));
+      showLevelUp();
+    } else lines.push('（この 章は もう ★3。ほかの 章で ★を あつめよう）');
+    if (!was && allStar(pr)) lines.push('ぜんぶの 章が ★3！　さいごの 章が ひらいた！');
+    else if (!allStar(pr)) lines.push('★ ぜんぶで ' + starTotal(pr) + '/' + NORM.length * MAX_STAR);
+  } else {
+    pr.done = true;
+    lines.push('GAME CLEAR!　根を 指数に かえし者よ、その ちえに えいこう あれ。');
+  }
+  const k = C.zukanCount(loadZk());
+  lines.push('📖 ずかん ' + k.got + '/' + k.all + (compText(loadZk()) ? '　' + compText(loadZk()) : ''));
+  saveProg(pr);
+  $('clearHero').textContent = c.boss.sprite;
+  $('clearTitle').textContent = c.boss.name + 'を たおした！';
+  $('clearText').textContent = lines.join('\n');
+  $('resetBtn1').classList.toggle('hidden', !c.final);
+  $('againBtn').classList.toggle('hidden', !!c.final);
+  $('againBtn').textContent = starsOf(pr, c.ch) < MAX_STAR ? '🔁 もう一回（★' + (starsOf(pr, c.ch) + 1) + ' へ）' : '🔁 もう一回';
+  $('clearScreen').classList.remove('hidden');
+}
+function showZukan() {
+  const zk = loadZk(), k = C.zukanCount(zk);
+  let html = '', last = 0;
+  C.MONSTERS.slice().sort((a, b) => a.ch - b.ch || (a.boss ? 2 : a.mab ? 1 : 0) - (b.boss ? 2 : b.mab ? 1 : 0)).forEach(m => {
+    if (m.ch !== last) { html += '<div class="zch">' + C.CHAPTERS[m.ch - 1].title + '</div>'; last = m.ch; }
+    const v = zk[m.id] || 0;
+    const mz = m.mab ? ' mabz' : '';   // まぼろしは 金の わく
+    if (!v) { html += '<div class="zi lock' + mz + '" data-id="' + m.id + '"><span class="mk">・</span><span class="sp">？</span><span class="nm">？？？' + (m.mab ? '（★3 の 回に あらわれる）' : '') + '</span><span class="tip">' + (m.mab ? 'まぼろしの モンスター' : m.boss ? 'まだ たおして いない ボス' : 'まだ たおして いない') + '</span></div>'; return; }
+    html += '<div class="zi ' + (v >= 2 ? 'master' : 'got') + mz + '" data-id="' + m.id + '"><span class="mk">' + (v >= 2 ? '◎' : '○') + '</span><span class="sp">' + m.sprite + '</span><span class="nm">' + (m.mab ? 'まぼろしの ' : '') + m.name + (m.boss ? '（ボス）' : '') + '</span><span class="tip">' + mathHTML(m.tip) + '</span></div>';
+  });
+  $('zukanList').innerHTML = html;
+  $('zukanCount').textContent = 'たおした ' + k.got + '/' + k.all + '　◎ ' + k.mas + '/' + k.all + '　まぼろし ' + k.mabGot + '/' + k.mabAll;
+  $('zukanComp').textContent = compText(zk); $('zukanComp').classList.toggle('hidden', !compText(zk));
+  $('mapScreen').classList.add('hidden'); $('zukanScreen').classList.remove('hidden'); $('zukanScreen').scrollTop = 0;
+}
+function resetAll() {
+  memProg = newProg(); memZk = { _v: C.DATA_V };
+  try { [PROG_KEY, ZK_KEY, TUT_KEY].forEach(k => localStorage.removeItem(k)); } catch (e) { /* 消せなくても その回は 最初から */ }
+  ['resetScreen', 'clearScreen', 'mapScreen'].forEach(id => $(id).classList.add('hidden'));
+  state.ctx = C.newContext(); state.phase = 'idle';
+  renderTitleComp();
+  $('titleScreen').classList.remove('hidden');
+}
+function onWrong(cls) {
+  const q = p();
+  state.combo = 0;
+  if (atBoss()) state.bossMiss = true;
+  if (q.mab) state.mabMiss = true;
+  state.lives -= 1; state.phase = 'next'; state.reveal = true; state.view = 'ans';
+  draw(); renderControls(); renderStatus();
+  monsterAnim('miss-dmg'); showDamage('MISS', '#ff4444');
+  setMessage(['ざんねん！　' + C.describe(q, cls), 'ただしい こたえは みどり', ...q.reason].join('\n'));
+  state.onNext = state.lives <= 0
+    ? () => { state.phase = 'idle'; $('gameOverScreen').classList.remove('hidden'); }
+    : () => { newProblem(); setMessage((p().target.lv ? 'にた もんだいで たしかめよう！' : 'もういちど！') + '\n' + hint()); };
+}
+function next() { if (state.phase !== 'next' || !state.onNext) return; const cb = state.onNext; state.onNext = null; cb(); }
+
+
+// ---------- チュートリアル ----------
+const TUT = [
+  { prm: { mode: 'rtVal', n: 4, a: 16 }, msg: '【れんしゅう 1/3】√[4]{16} は「4乗して 16 に なる 正の 数」。2^{4} ＝ 16。\n「2」を えらぼう', wrongOpt: '4乗して 16 に なる 正の 数 → 2 だよ' },
+  { prm: { mode: 'toExp', n: 3, k: 2 }, msg: '【れんしゅう 2/3】累乗根は すぐ 指数に 直す。中の 2 が 分子、左上の 3 が 分母。\n「{2|3}」を えらぼう', wrongOpt: '√[3]{a^{2}} ＝ a^{{2|3}}：中の 指数が 分子 だよ' },
+  { prm: { mode: 'bRoot', B: 2, t: [[3, 2]] }, msg: '【れんしゅう 3/3】4 ＝ 2^{2} に 直すと √[3]{4} ＝ √[3]{2^{2}} ＝ 2^{{2|3}}。\n「{2|3}」を えらぼう', wrongOpt: '4 ＝ 2^{2} → 中の 2 が 分子、左上の 3 が 分母 だよ' },
+];
+function tutDone() { try { return localStorage.getItem(TUT_KEY) === '1'; } catch (e) { return false; } }
+let pulseId = null;
+function pulse(id) {
+  pulseId = id;
+  ['decideBtn'].concat(optBtns.map((b, i) => 'opt' + i)).forEach(b => { const el = b.startsWith('opt') ? optBtns[+b[3]] : $(b); el.classList.toggle('pulse', b === id); });
+  $('btnHint').classList.toggle('hidden', !id);
+  placeBtnHint();
+}
+function placeBtnHint() {
+  if (!pulseId) return;
+  const el = pulseId.startsWith('opt') ? optBtns[+pulseId[3]] : $(pulseId);
+  const b = el.getBoundingClientRect(), g = gameEl.getBoundingClientRect();
+  $('btnHint').style.left = (b.left - g.left + b.width * 0.84) + 'px';
+  $('btnHint').style.top = (b.top - g.top + 26) + 'px';
+}
+function stopBlink() { $('tapHint').classList.add('hidden'); }
+function startTutorial() {
+  state.tut = { i: 0, step: 'opt' };
+  state.ch = 1; state.slotIdx = 0; state.hp = 1; state.lives = MAX_LIVES;
+  $('skipTut').classList.remove('hidden');
+  tutProblem();
+}
+function tutProblem() {
+  const t = TUT[state.tut.i];
+  state.problem = C.build(Object.assign({}, t.prm), Math.random);
+  resetInput();
+  state.phase = 'play';
+  renderEnemy(); renderProblem(); renderControls(); renderStatus(); pulse(null);
+  setMessage(t.msg);
+  state.tut.step = 'opt'; pulse('opt' + p().options.findIndex(o => o.correct));
+  draw();
+}
+function tutTap() {}
+function tutOpt(i) {
+  const q = p();
+  if (state.tut.step !== 'opt') return;
+  if (!q.options[i].correct) { setMessage(TUT[state.tut.i].wrongOpt); return; }
+  state.opt = i; state.tut.step = 'decide';
+  renderControls(); setMessage('さいごに「けってい」を おそう'); pulse('decideBtn');
+}
+function tutDecide() {
+  if (state.tut.step !== 'decide') return;
+  const last = state.tut.i === TUT.length - 1;
+  pulse(null);
+  state.reveal = true; state.phase = 'next';
+  renderControls(); draw(); flashScreen(); monsterAnim('hit');
+  setMessage('せいかい！\n' + (last ? 'これで れんしゅうは おしまい' : 'つぎの れんしゅうへ'));
+  state.onNext = last ? () => { state.phase = 'idle'; $('tutDoneScreen').classList.remove('hidden'); } : () => { state.tut.i += 1; tutProblem(); };
+}
+function endTutorial() {
+  stopBlink(); pulse(null);
+  state.tut = null;
+  $('skipTut').classList.add('hidden');
+  try { localStorage.setItem(TUT_KEY, '1'); } catch (e) { /* 保存できなくても 遊べる */ }
+  showMap();
+}
+
+// ---------- 操作 ----------
+optBtns.forEach((b, i) => b.addEventListener('click', () => {
+  if (state.phase !== 'play') return;
+  if (state.tut) { tutOpt(i); return; }
+  state.opt = i; renderControls();
+}));
+$('decideBtn').addEventListener('click', submit);
+$('againBtn').addEventListener('click', () => { $('clearScreen').classList.add('hidden'); state.ctx = C.newContext(); startChapter(state.ch); });
+document.querySelectorAll('[data-m]').forEach(el => { el.innerHTML = mathHTML(el.dataset.m); });
+$('hintBtn').addEventListener('click', showHint);
+$('ruleBtn').addEventListener('click', () => $('ruleScreen').classList.remove('hidden'));
+$('ruleClose').addEventListener('click', () => $('ruleScreen').classList.add('hidden'));
+$('ruleDef').addEventListener('click', () => { $('ruleScreen').classList.add('hidden'); $('defClose').textContent = '▶ もどる'; $('defScreen').classList.remove('hidden'); $('defScreen').scrollTop = 0; });
+$('defClose').addEventListener('click', () => $('defScreen').classList.add('hidden'));
+$('nextBtn').addEventListener('click', next);
+$('mineBtn').addEventListener('click', () => { if (state.phase === 'next') { state.view = 'mine'; renderControls(); draw(); } });
+$('ansBtn').addEventListener('click', () => { if (state.phase === 'next') { state.view = 'ans'; renderControls(); draw(); } });
+$('startBtn').addEventListener('click', () => {
+  $('titleScreen').classList.add('hidden');
+  state.ctx = C.newContext();
+  if (tutDone()) showMap(); else startTutorial();
+});
+$('howBtn').addEventListener('click', () => { $('titleScreen').classList.add('hidden'); startTutorial(); });
+$('skipTut').addEventListener('click', () => { if (state.tut) endTutorial(); });
+$('goBtn').addEventListener('click', () => { $('tutDoneScreen').classList.add('hidden'); endTutorial(); });
+$('retryBtn').addEventListener('click', () => { $('gameOverScreen').classList.add('hidden'); startChapter(state.ch); });
+$('toMapBtn').addEventListener('click', () => { $('gameOverScreen').classList.add('hidden'); gameEl.classList.remove('boss-mid', 'boss-final'); showMap(); });
+$('clearBtn').addEventListener('click', () => { $('clearScreen').classList.add('hidden'); showMap(); });
+$('resetBtn1').addEventListener('click', () => $('resetScreen').classList.remove('hidden'));
+$('resetYes').addEventListener('click', resetAll);
+$('resetNo').addEventListener('click', () => $('resetScreen').classList.add('hidden'));
+$('zukanBtn').addEventListener('click', showZukan);
+$('zukanClose').addEventListener('click', () => { $('zukanScreen').classList.add('hidden'); showMap(); });
+$('mapBtn').addEventListener('click', () => { if (!state.tut && (state.phase === 'play' || state.phase === 'next')) $('quitScreen').classList.remove('hidden'); });
+$('quitNo').addEventListener('click', () => $('quitScreen').classList.add('hidden'));
+$('quitYes').addEventListener('click', () => {
+  $('quitScreen').classList.add('hidden');
+  gameEl.classList.remove('boss-mid', 'boss-final');
+  state.phase = 'idle'; state.onNext = null; renderMapBtn();
+  showMap();
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  e.preventDefault();
+  if (e.repeat) return;
+  if (!$('resetScreen').classList.contains('hidden') || !$('mapScreen').classList.contains('hidden') || !$('quitScreen').classList.contains('hidden')) return;
+  const overlayBtn = { defScreen: 'defClose', ruleScreen: 'ruleClose', zukanScreen: 'zukanClose', titleScreen: 'startBtn', tutDoneScreen: 'goBtn', clearScreen: 'clearBtn', gameOverScreen: 'retryBtn' };
+  for (const id in overlayBtn) if (!$(id).classList.contains('hidden')) { $(overlayBtn[id]).click(); return; }
+  if (state.phase === 'next') next();
+  else if (state.phase === 'play' && e.key === 'Enter') submit();
+});
+
+new ResizeObserver(resizePlane).observe(wrap);
+renderTitleComp(); renderStatus(); renderControls();
+})();
+</script>
+
