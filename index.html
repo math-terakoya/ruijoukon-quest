@@ -169,6 +169,14 @@ min-height: 44px; touch-action: manipulation;
 /* 図を 使わない ゲーム：図の 場所を なくし、問題の 式を 大きく まんなかに */
 #game.nofig #planeWrap { display: none; }
 #game.nofig #battle { flex: 1 1 auto; min-height: 0; }
+/* 選択肢に 分数の 中の 分数（分子も 分母も a の 分数乗 など）が ある ときは、問題の 欄を 式の 高さに して、あいた 高さで 選択肢を 大きく（11-04 先生） */
+#game.nofig.deepopt #battle { flex: 0 0 auto; }   /* 縮めない（小さい 画面では 画面を スクロール） */
+#game.deepopt #controls { flex: 1 0 auto; }
+#game.deepopt #controls .key.opt { font-size: 26px; }
+#game.deepopt #controls .key.opt .fr { font-size: 0.92em; }
+#game.deepopt #controls .key.opt .fr .fr, #game.deepopt #controls .key.opt .fr sup.ex, #game.deepopt #controls .key.opt sup .fr { font-size: 0.9em; }
+#game.deepopt #problem .expr .fr { font-size: 0.95em; }
+#game.deepopt #controls .key.opt sup.ex { font-size: 0.8em; vertical-align: 0.7em; }
 #game.nofig #problem .expr { font-size: 30px; line-height: 1.6; }
 #problem .expr { font-size: 20px; line-height: 1.5; }
 #game.nofig #problem .expr.long { font-size: 26px; }
@@ -815,6 +823,7 @@ function build(prm, rng, opt = {}) {
     p.display = exam[Math.floor(rng() * exam.length)];
     p.exam = true;
     p.shortText = short[1].length > 30 ? monsterOf(form).name + 'の 問題' : short[1];
+    if (/(の 累乗で|の 形で) 表せ。/.test(p.display) && !/は？$/.test(p.display) && !STEPS.includes(q.mode)) p.options = p.options.map(o => Object.assign({}, o, { text: pw(q.B || 'a', o.text) }));   // 「3 の 累乗で 表せ」なら 答えも 3^{…} の 形（指数だけ では ない。11-04 先生）
   }
   p.reason = reasonLines(q);
   if (p.exam) p.reason.push('この 問題は 第' + lv + '章の「' + p.shortText + '」と おなじ');
@@ -1087,12 +1096,15 @@ function renderControls() {
 function fitOpts() {
   const c = $('controls'), vis = optBtns.filter(b => !b.classList.contains('hidden'));
   c.classList.remove('one'); optBtns.forEach(b => { b.style.fontSize = ''; });
+  const deep = vis.some(b => b.querySelector('.fr .fr, sup .fr'));   // 分数の 中の 分数・指数の 分数
+  gameEl.classList.toggle('deepopt', deep); c.style.gridTemplateRows = '';
   if (!vis.length) return;
   const over = () => vis.some(b => b.scrollWidth > b.clientWidth + 1);
   const shrink = min => { let f = parseFloat(getComputedStyle(vis[0]).fontSize); while (over() && f > min) { f -= 1; vis.forEach(b => { b.style.fontSize = f + 'px'; }); } };
   shrink(13);
   if (over()) { vis.forEach(b => { b.style.fontSize = ''; }); c.classList.add('one'); shrink(8); }
   if (over()) vis.forEach(b => b.querySelectorAll('.nw').forEach(nw => { nw.style.whiteSpace = 'normal'; }));
+  if (deep) { const cols = c.classList.contains('one') ? 1 : c.classList.contains('three') ? 3 : 2; c.style.gridTemplateRows = '1fr '.repeat(Math.ceil(vis.length / cols)) + 'auto'; }   // 選択肢の 行が あいた 高さを 分ける（けってい は そのまま）
 }
 window.__fitOpts = fitOpts;
 function ready() {
@@ -1509,4 +1521,20 @@ new ResizeObserver(resizePlane).observe(wrap);
 renderTitleComp(); renderStatus(); renderControls();
 })();
 </script>
-
+<script>
+// モンスターの 名前が 名前の らんに 入らない ときは 小さく（問題文に かからない。11-04 先生）
+(() => {
+  const el = document.getElementById('monsterName'); if (!el) return;
+  let busy = false;
+  const fit = () => {
+    if (busy) return; busy = true;
+    el.style.fontSize = ''; el.style.letterSpacing = '';
+    if (el.scrollWidth > el.clientWidth + 0.5) el.style.letterSpacing = '0';
+    let f = parseFloat(getComputedStyle(el).fontSize);
+    while (el.scrollWidth > el.clientWidth + 0.5 && f > 6) { f -= 0.5; el.style.fontSize = f + 'px'; }
+    busy = false;
+  };
+  new MutationObserver(fit).observe(el, { childList: true, characterData: true, subtree: true });
+  window.addEventListener('resize', fit); fit();
+})();
+</script>
